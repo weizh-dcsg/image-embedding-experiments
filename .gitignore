@@ -1,0 +1,67 @@
+# OS and editor files
+.DS_Store
+.vscode/
+.idea/
+
+# Credentials and local configuration
+elastic-key.txt
+**/elastic-key.txt
+.env
+.env.*
+!.env.example
+
+# Python environments, caches, and build artifacts
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+build/
+dist/
+*.egg-info/
+
+# Generated experiment images and temporary data
+base0/embedding_eval/results/
+**/images/
+**/image_cache/
+**/downloads/
+**/crops/
+**/embeddings/
+
+# Large model, vector, database, and serialized data files
+*.bin
+*.ckpt
+*.pt
+*.pth
+*.safetensors
+*.onnx
+*.dylib
+*.so
+*.dll
+*.h5
+*.hdf5
+*.npy
+*.npz
+*.pkl
+*.pickle
+*.parquet
+*.feather
+*.arrow
+*.db
+*.sqlite
+*.sqlite3
+
+# Archives and media that are usually too large for Git
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+*.mp4
+*.mov

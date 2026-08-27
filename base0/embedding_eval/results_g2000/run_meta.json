@@ -1,0 +1,13 @@
+{
+  "n_queries": 300,
+  "n_pairs": 128256,
+  "n_products": 46582,
+  "mean_pool_size": 427.52,
+  "siglip_model": "google/siglip-base-patch16-512",
+  "jina_model": "jinaai/jina-embeddings-v5-text-nano",
+  "bootstrap_samples": 2000,
+  "label_sets": [
+    "ltr",
+    "raw_ctr"
+  ]
+}

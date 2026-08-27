@@ -1,0 +1,16 @@
+{
+  "n_queries": 600,
+  "n_products": 28201,
+  "n_queries_by_tier": {
+    "head": 200,
+    "tail": 200,
+    "torso": 200
+  },
+  "bootstrap_samples": 2000,
+  "image_systems": [
+    "siglip_image",
+    "omni_nano_image",
+    "omni_small_image"
+  ],
+  "excluded_degenerate": []
+}

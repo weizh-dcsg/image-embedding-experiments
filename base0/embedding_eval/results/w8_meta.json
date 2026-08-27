@@ -1,0 +1,13 @@
+{
+  "n_queries": 600,
+  "n_products": 28201,
+  "image_systems": [
+    "siglip_image",
+    "omni_nano_image"
+  ],
+  "excluded_degenerate": [
+    "omni_small_image"
+  ],
+  "n_combinations": 36,
+  "bootstrap_samples": 2000
+}

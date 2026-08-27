@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Image &amp; Text Embeddings for Search Relevance — W1–W6</title>
+<style>
+  :root{
+    --bg:#0e1117; --panel:#161b24; --ink:#e8edf5; --muted:#93a1b5;
+    --line:#25303f; --accent:#4c9aff; --good:#3ddc97; --warn:#ffb454; --bad:#ff6b6b;
+    --mono:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%}
+  body{
+    background:var(--bg); color:var(--ink);
+    font:16px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    overflow:hidden;
+  }
+  .deck{height:100vh;width:100vw;position:relative}
+  .slide{
+    position:absolute; inset:0; padding:40px 56px 16px;
+    display:none; flex-direction:column; overflow:auto;
+  }
+  .slide.active{display:flex}
+  h1{font-size:44px;line-height:1.15;margin:0 0 12px;letter-spacing:-.02em}
+  h2{font-size:28px;margin:0 0 4px;letter-spacing:-.01em}
+  h3{font-size:16px;margin:14px 0 6px;color:var(--accent);text-transform:uppercase;letter-spacing:.08em}
+  p{margin:0 0 10px;max-width:105ch}
+  ul{margin:6px 0 10px;padding-left:22px;max-width:105ch}
+  li{margin:5px 0}
+  .kicker{color:var(--accent);font-size:13px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;margin-bottom:8px}
+  .sub{color:var(--muted);font-size:19px;margin-bottom:18px}
+  .rule{height:2px;background:linear-gradient(90deg,var(--accent),transparent);margin:0 0 16px;border:0}
+  table{border-collapse:collapse;width:100%;margin:8px 0 12px;font-size:13.5px}
+  th,td{border-bottom:1px solid var(--line);padding:6px 10px;text-align:left}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.07em;white-space:nowrap}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono)}
+  tr.hi td{background:rgba(76,154,255,.13);font-weight:700}
+  tr.dim td{color:var(--muted)}
+  code{font-family:var(--mono);font-size:.92em;background:#1d2531;padding:1px 6px;border-radius:4px;color:#cfe1ff}
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g4{grid-template-columns:repeat(4,1fr)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .card h4{margin:0 0 7px;font-size:14.5px;color:var(--accent)}
+  .stat{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);
+        border-radius:8px;padding:12px 14px}
+  .stat .v{font-size:30px;font-weight:800;font-family:var(--mono);letter-spacing:-.02em;line-height:1.1}
+  .stat .l{color:var(--muted);font-size:12px;margin-top:4px;line-height:1.35}
+  .good{color:var(--good)} .warn{color:var(--warn)} .bad{color:var(--bad)} .mut{color:var(--muted)}
+  .callout{background:rgba(76,154,255,.09);border-left:3px solid var(--accent);
+           padding:11px 15px;border-radius:0 8px 8px 0;margin:12px 0}
+  .callout.bad{background:rgba(255,107,107,.09);border-left-color:var(--bad)}
+  .callout.good{background:rgba(61,220,151,.09);border-left-color:var(--good)}
+  .callout.warn{background:rgba(255,180,84,.09);border-left-color:var(--warn)}
+  .foot{margin-top:auto;padding-top:9px;display:flex;justify-content:space-between;
+        color:var(--muted);font-size:12px;border-top:1px solid var(--line)}
+  .pill{display:inline-block;background:#1d2531;border:1px solid var(--line);color:var(--muted);
+        border-radius:999px;padding:2px 11px;font-size:11.5px;margin-right:6px}
+  .nav{position:fixed;right:18px;bottom:14px;display:flex;gap:6px;z-index:50}
+  .nav button{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;
+              width:34px;height:30px;font-size:15px;cursor:pointer}
+  .nav button:hover{border-color:var(--accent);color:var(--accent)}
+  .bar{position:fixed;left:0;top:0;height:3px;background:var(--accent);z-index:60;transition:width .18s}
+  .title-slide{justify-content:center;align-items:flex-start}
+  .title-slide h1{font-size:56px;max-width:22ch}
+  .lede{font-size:20px;color:var(--muted);max-width:80ch}
+  .small{font-size:13px}
+  .tag{font-family:var(--mono);font-size:12px;color:var(--muted)}
+  @media print{
+    html,body{height:auto;overflow:visible}
+    .slide{display:flex!important;position:relative;page-break-after:always;height:100vh}
+    .nav,.bar{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="bar" id="bar"></div>
+<div class="deck" id="deck">
+
+<!-- 1 -->
+<section class="slide active title-slide">
+  <div class="kicker">DS eCom Search Ranking · 2026</div>
+  <h1>Image &amp; Text Embeddings for Search Relevance</h1>
+  <p class="lede">Six weeks of controlled experiments on what a product embedding should read,
+  whether images carry usable signal, how the modalities combine, and whether the labels we grade
+  against can be trusted.</p>
+  <div class="grid g3" style="margin-top:26px;width:100%;max-width:1000px">
+    <div class="stat"><div class="v">6,537</div><div class="l">queries in the current evaluable test set (head + torso + tail)</div></div>
+    <div class="stat"><div class="v">80,848</div><div class="l">unique active products embedded across all systems</div></div>
+    <div class="stat"><div class="v">9</div><div class="l">retrieval systems compared on identical candidate pools</div></div>
+  </div>
+  <p class="tag" style="margin-top:28px">W1 Setup · W2 Localization · W3 Complementarity · W4 Validity &amp; Cost · W5 Query tiers · W6 Fusion sweep</p>
+</section>
+
+<!-- 2 -->
+<section class="slide">
+  <div class="kicker">Executive summary</div>
+  <h2>Six findings, ranked by how much they should change what we do</h2>
+  <hr class="rule">
+  <table>
+    <thead><tr><th>#</th><th>Finding</th><th>Evidence</th><th>Confidence</th></tr></thead>
+    <tbody>
+      <tr class="hi"><td>1</td><td><b>Found a tie-ordering bug that invalidated our headline result</b> — attributes were reading the label order</td><td>64.1% of candidates tied per pool</td><td class="good">Verified</td></tr>
+      <tr class="hi"><td>2</td><td><b>Found and fixed a position-leakage defect in the judgement list</b></td><td>corr(position, grade) −0.29 → −0.18</td><td class="good">Census</td></tr>
+      <tr><td>3</td><td><b>Modality complementarity is large but uncapturable</b> — oracle +16.3%, routers fail</td><td>Routers at 48% / 42% accuracy</td><td class="good">p &lt; 0.001</td></tr>
+      <tr><td>4</td><td><b>Fusion beats the image alone</b>, but no fusion method generalises across encoders</td><td>Best method changes with the image tower</td><td class="warn">Mixed</td></tr>
+      <tr><td>5</td><td><b>Long-tail queries are where every system degrades</b> — 70% of the evaluable set</td><td>Tail NDCG@10 well below head</td><td class="warn">Descriptive</td></tr>
+      <tr class="dim"><td>6</td><td><b>Fixing image localization barely matters</b> — a real defect with no measurable payoff</td><td>+0.9% NDCG@10</td><td class="bad">p = 0.391</td></tr>
+    </tbody>
+  </table>
+  <div class="callout bad">
+    <b>Headline recommendation, revised:</b> do <b>not</b> adopt the Big-4 attribute representation.
+    Its apparent win was an evaluation artefact — 17.8% distinct strings meant 64.1% of each
+    candidate pool tied, and a stable sort leaked the label order. After the fix it ranks
+    <b>last</b> among real systems. Two independent harness defects were found and fixed this
+    cycle; treat all prior single-run conclusions as provisional until re-run.
+  </div>
+  <div class="foot"><span>Executive summary</span><span>2 / 20</span></div>
+</section>
+
+<!-- 3 -->
+<section class="slide">
+  <div class="kicker">W1 · The problem</div>
+  <h2>Why the obvious comparison is worthless</h2>
+  <hr class="rule">
+  <p>The naive experiment — take a CLIP-family image tower, take a text retriever, compare them —
+  changes the <b>encoder</b> and the <b>modality</b> at the same time. Any difference is
+  unattributable. Almost every public comparison of this kind is confounded this way.</p>
+  <div class="grid g2">
+    <div class="card">
+      <h4>The confound</h4>
+      <p class="small">SigLIP image vs Jina text differs in: training objective, training data,
+      parameter count, tokenizer, output dimensionality, <i>and</i> input modality. Six variables,
+      one measurement.</p>
+    </div>
+    <div class="card">
+      <h4>The fix we exploit</h4>
+      <p class="small">Dual-tower vision-language models project <b>both</b> towers into a
+      <b>shared</b> space. So the same model can represent a product by its photo <i>or</i> its
+      title, with the query encoder held completely fixed.</p>
+    </div>
+  </div>
+  <h3>The two contrasts this buys us</h3>
+  <table>
+    <thead><tr><th>Contrast</th><th>Holds fixed</th><th>Varies</th><th>Answers</th></tr></thead>
+    <tbody>
+      <tr class="hi"><td><code>image</code> vs <code>text-siglip</code></td><td>Encoder, query tower, embedding space</td><td>Product representation only</td><td>Does <b>modality</b> matter?</td></tr>
+      <tr><td><code>text-siglip</code> vs <code>text-jina</code></td><td>Modality (both read the title)</td><td>Encoder</td><td>Does <b>model choice</b> matter?</td></tr>
+    </tbody>
+  </table>
+  <div class="callout warn"><b>Without the same-encoder control, every number in this study would be uninterpretable.</b>
+  It is the single most important design decision in the series.</div>
+  <div class="foot"><span>W1 · Design</span><span>3 / 20</span></div>
+</section>
+
+<!-- 4 -->
+<section class="slide">
+  <div class="kicker">W1 · Design</div>
+  <h2>Systems under test</h2>
+  <hr class="rule">
+  <p>Every system ranks the <b>same candidate pool</b> for the <b>same queries</b>. Only the product
+  representation changes.</p>
+  <table>
+    <thead><tr><th>System</th><th>Query encoder</th><th>Product representation</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td><code>image</code></td><td>SigLIP text tower</td><td>SigLIP <b>image</b> tower over the photo</td><td>Treatment</td></tr>
+      <tr class="hi"><td><code>text-siglip</code></td><td>SigLIP text tower</td><td>SigLIP <b>text</b> tower over the title</td><td><b>Control</b> — isolates modality</td></tr>
+      <tr><td><code>text-jina</code> / <code>-small</code></td><td>Jina v5 <code>retrieval.query</code></td><td>Jina v5 doc vector over the title</td><td>External comparator + capacity control</td></tr>
+      <tr class="hi"><td><code>attr-siglip</code></td><td>SigLIP text tower</td><td>SigLIP text over <b>Big-4 attributes</b></td><td>Representation treatment</td></tr>
+      <tr><td><code>attr-jina</code> / <code>-small</code></td><td>Jina v5 <code>retrieval.query</code></td><td>Jina v5 over Big-4 attributes</td><td>Encoder × representation cross</td></tr>
+      <tr><td><code>fusion</code></td><td>both</td><td>Combined image + text similarity</td><td>Combination</td></tr>
+      <tr class="dim"><td><code>production</code></td><td>—</td><td>Mean observed impression position</td><td>Incumbent-ordering reference</td></tr>
+      <tr class="dim"><td><code>random</code></td><td>—</td><td>Seeded shuffle</td><td>Floor</td></tr>
+    </tbody>
+  </table>
+  <h3>The "Big-4" attribute string</h3>
+  <p><code>brand · product_type · product_activity · gender_by_age</code> → e.g.
+  <code>"Nike Cleats Soccer Adult"</code>. Nothing else — no title, no description.
+  <b>100% catalogue coverage.</b></p>
+  <div class="foot"><span>W1 · Systems</span><span>4 / 20</span></div>
+</section>
+
+<!-- 5 -->
+<section class="slide">
+  <div class="kicker">W1 · Evaluation harness</div>
+  <h2>How relevance is graded</h2>
+  <hr class="rule">
+  <p>Labels reproduce the <b>production LTR judgement-list</b> conventions exactly, so results are
+  comparable to what the deployed ranker trains against.</p>
+  <div class="grid g2">
+    <div class="card">
+      <h4>Construction pipeline</h4>
+      <ul class="small" style="margin:0">
+        <li>SRLP page-0 clickstream, 90-day window, DSG / web</li>
+        <li>Inverse-propensity weights per rank: <code>τ = 1/(impr@k / searches@k)</code></li>
+        <li>Sigmoid time decay, normalised per query</li>
+        <li>Relevance 0–4 from smoothed weighted-CTR quantile bins</li>
+        <li>Candidates restricted to web-active products with title + image</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>Metrics &amp; statistics</h4>
+      <ul class="small" style="margin:0">
+        <li>NDCG, Recall, Precision, MRR at <b>k = 5, 10, 20, 48, 96, 144</b></li>
+        <li>MAP (no cutoff). Primary metric: <b>NDCG@10</b></li>
+        <li><b>Macro</b> (per typical query) and <b>impression-weighted</b> (per typical impression)</li>
+        <li>Paired bootstrap over queries, 2,000 resamples, seed 20260808</li>
+        <li>Second label set (raw CTR) scored as a robustness check</li>
+      </ul>
+    </div>
+  </div>
+  <h3>Grade distribution</h3>
+  <table>
+    <thead><tr><th>Grade</th><th class="num">4</th><th class="num">3</th><th class="num">2</th><th class="num">1</th><th class="num">0</th></tr></thead>
+    <tbody><tr><td>Share of pairs</td><td class="num">12.7%</td><td class="num">13.8%</td><td class="num">16.1%</td><td class="num">29.3%</td><td class="num">28.0%</td></tr></tbody>
+  </table>
+  <div class="callout"><b>Why two weightings.</b> Macro answers "how well does this rank a typical
+  <i>query</i>"; impression weighting answers "how well does this rank a typical <i>search</i>".
+  They disagree repeatedly in this study, and neither is the "true" number.</div>
+  <div class="foot"><span>W1 · Harness</span><span>5 / 20</span></div>
+</section>
+
+<!-- 6 -->
+<section class="slide">
+  <div class="kicker">W1 · Headline result</div>
+  <h2>What should the embedding actually read?</h2>
+  <hr class="rule">
+  <p class="mut small">Macro-averaged, <b>corrected</b> labels and <b>corrected</b> tie handling, 6,536-query test set.</p>
+  <table>
+    <thead><tr><th>System</th><th class="num">NDCG@10</th><th class="num">NDCG@20</th><th class="num">Recall@10</th><th class="num">MAP</th></tr></thead>
+    <tbody>
+      <tr class="hi"><td><code>fusion</code></td><td class="num">0.4289</td><td class="num">0.4858</td><td class="num">0.3930</td><td class="num">0.6315</td></tr>
+      <tr><td><code>production</code></td><td class="num">0.4194</td><td class="num">0.4718</td><td class="num">0.3793</td><td class="num">0.6003</td></tr>
+      <tr><td><code>image</code></td><td class="num">0.4103</td><td class="num">0.4713</td><td class="num">0.3802</td><td class="num">0.6121</td></tr>
+      <tr><td><code>text-jina</code></td><td class="num">0.3932</td><td class="num">0.4560</td><td class="num">0.3757</td><td class="num">0.6112</td></tr>
+      <tr><td><code>text-jina-small</code></td><td class="num">0.3906</td><td class="num">0.4550</td><td class="num">0.3731</td><td class="num">0.6109</td></tr>
+      <tr><td><code>text-siglip</code></td><td class="num">0.3785</td><td class="num">0.4414</td><td class="num">0.3559</td><td class="num">0.5805</td></tr>
+      <tr class="dim"><td><code>attr-siglip</code> <span class="tag">(was 0.5116)</span></td><td class="num bad">0.3529</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>
+      <tr class="dim"><td><code>attr-jina</code> <span class="tag">(was 0.4351)</span></td><td class="num bad">0.3289</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>
+      <tr class="dim"><td><code>random</code></td><td class="num">0.2534</td><td class="num">0.3246</td><td class="num">0.2742</td><td class="num">0.4764</td></tr>
+    </tbody>
+  </table>
+  <div class="callout bad"><b>The attribute rows moved, and nothing else did.</b> Every non-attribute system
+  changed by less than 0.005 under the tie fix; the three attribute systems fell by 0.106–0.159.
+  That asymmetry is the signature of the bug, and it is why the original result looked so strong.</div>
+  <div class="foot"><span>W1 · Results</span><span>6 / 20</span></div>
+</section>
+
+<!-- 7 -->
+<section class="slide">
+  <div class="kicker">W1 · Why it wins, and what doesn't</div>
+  <h2>The win is not "more information", and not "bigger model"</h2>
+  <hr class="rule">
+  <div class="grid g2">
+    <div class="card">
+      <h4>Attributes carry <i>less</i> information than titles</h4>
+      <table style="margin-top:4px">
+        <thead><tr><th>Property</th><th class="num">Title</th><th class="num">Big-4</th></tr></thead>
+        <tbody>
+          <tr><td>Mean length (words)</td><td class="num">7.0</td><td class="num">5.5</td></tr>
+          <tr><td><b>Distinct strings</b></td><td class="num">94.7%</td><td class="num">27.7%</td></tr>
+        </tbody>
+      </table>
+      <p class="small">257 products share <code>"Nike Cleats Soccer Adult"</code>. The attribute
+      representation <b>cannot separate products within a category at all</b> — and still wins.</p>
+      <p class="small"><b>Implication:</b> the labels reward <b>category-level</b> matching far more
+      than instance-level ordering. That is a property of the label definition, worth knowing
+      independently of embeddings.</p>
+    </div>
+    <div class="card">
+      <h4>Capacity is not the answer</h4>
+      <table style="margin-top:4px">
+        <thead><tr><th>Capacity jump</th><th class="num">Δ NDCG@10</th><th class="num">p</th></tr></thead>
+        <tbody>
+          <tr><td>239M → 677M on <b>titles</b></td><td class="num">+0.0058</td><td class="num bad">0.517</td></tr>
+          <tr><td>239M → 677M on <b>attributes</b></td><td class="num">+0.0418</td><td class="num good">0.015</td></tr>
+          <tr class="hi"><td>203M SigLIP vs 677M Jina (attrs)</td><td class="num">+0.0745</td><td class="num good">&lt;0.001</td></tr>
+        </tbody>
+      </table>
+      <p class="small">A model <b>3.3× larger</b>, from a family purpose-built for retrieval,
+      <b>loses decisively</b> on attribute text. Short keyword strings suit SigLIP's alt-text
+      training distribution.</p>
+      <p class="small"><b>Implication:</b> whether capacity is worth paying for depends on the
+      <i>representation</i>, not the encoder alone.</p>
+    </div>
+  </div>
+  <div class="callout"><b>Encoder choice is irrelevant for titles</b> — two independently built encoders
+  land within 0.8% of each other (p = 0.843). It is worth <b>+0.0951</b> for attributes. The
+  representation determines whether the model matters.</div>
+  <div class="foot"><span>W1 · Interpretation</span><span>7 / 20</span></div>
+</section>
+
+<!-- 8 -->
+<section class="slide">
+  <div class="kicker">W2 · The defect</div>
+  <h2>Is the image signal even intact when it reaches the encoder?</h2>
+  <hr class="rule">
+  <p>Standard practice crops to the dominant detected object before encoding. On retail catalogue
+  photography — routinely shot on-model — that rule selects the <b>wrong thing</b> constantly.
+  This is a full census of 19,468 images, not a sample.</p>
+  <div class="grid g4">
+    <div class="stat"><div class="v bad">25.5%</div><div class="l">of all catalogue images crop to a <b>person</b>, not the product</div></div>
+    <div class="stat"><div class="v bad">40.0%</div><div class="l">of images where the detector fires at all</div></div>
+    <div class="stat"><div class="v warn">12.6%</div><div class="l">assigned to <b>impossible</b> classes — <code>airplane</code>, <code>vase</code>, <code>cake</code></div></div>
+    <div class="stat"><div class="v">13.4%</div><div class="l">land on a class both plausible <b>and</b> specific</div></div>
+  </div>
+  <h3>Why the taxonomy fails</h3>
+  <p>The baseline detector (<code>facebook/detr-resnet-50</code>) is a <b>fixed classifier over 91 COCO
+  classes</b>. COCO contains no shoe, no jersey, no glove, no bat. Asked to label a soccer cleat, it
+  must pick something — so it picks whatever is nearest in its taxonomy, or picks the human wearing it.</p>
+  <table>
+    <thead><tr><th>Selection outcome</th><th class="num">Count</th><th class="num">Share of catalogue</th></tr></thead>
+    <tbody>
+      <tr><td>Detector fired</td><td class="num">12,411</td><td class="num">63.8%</td></tr>
+      <tr class="hi"><td>— of which <code>person</code></td><td class="num">4,967</td><td class="num">25.5%</td></tr>
+      <tr><td>Fell through to background trim</td><td class="num">6,341</td><td class="num">32.6%</td></tr>
+      <tr><td>No usable box</td><td class="num">716</td><td class="num">3.7%</td></tr>
+    </tbody>
+  </table>
+  <div class="foot"><span>W2 · Census</span><span>8 / 20</span></div>
+</section>
+
+<!-- 9 -->
+<section class="slide">
+  <div class="kicker">W2 · The method</div>
+  <h2>MGPL — Metadata-Guided Product Localization</h2>
+  <hr class="rule">
+  <p>Training-free. Derive a product-type phrase from the item's <b>own title and taxonomy</b>, then
+  condition an <b>open-vocabulary</b> detector on that phrase. The catalogue already knows what the
+  object is — we just have to tell the detector.</p>
+  <div class="grid g2">
+    <div class="card">
+      <h4>Pipeline</h4>
+      <p class="small" style="font-family:var(--mono);font-size:12px">
+        title + taxonomy → product phrase → [OWLv2] → box → [SigLIP image tower] → 768-d → cosine
+      </p>
+      <p class="small">Detection and embedding are <b>entirely separate models</b>. The detector never
+      touches the embedding — its only job is deciding which pixels the encoder sees. SigLIP has no
+      spatial output at all, which is why a separate detector is required.</p>
+    </div>
+    <div class="card">
+      <h4>Cascade — first acceptable tier wins</h4>
+      <table style="margin-top:4px">
+        <thead><tr><th>Tier</th><th class="num">Images</th><th class="num">Share</th></tr></thead>
+        <tbody>
+          <tr class="hi"><td><code>owlv2</code> (phrase-conditioned)</td><td class="num">17,656</td><td class="num">90.7%</td></tr>
+          <tr><td><code>detr</code> (person-suppressed)</td><td class="num">—</td><td class="num">fallback</td></tr>
+          <tr><td>background trim</td><td class="num">—</td><td class="num">flat studio shots</td></tr>
+          <tr><td>full frame</td><td class="num">—</td><td class="num">last resort</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="grid g3" style="margin-top:4px">
+    <div class="stat"><div class="v good">90.7%</div><div class="l">of catalogue resolved by open-vocabulary detection with correct product types</div></div>
+    <div class="stat"><div class="v good">0.583→0.466</div><div class="l">median retained frame area — materially tighter crops</div></div>
+    <div class="stat"><div class="v">10.2 h</div><div class="l">added GPU indexing cost (OWLv2 at 4 items/s)</div></div>
+  </div>
+  <div class="foot"><span>W2 · Method</span><span>9 / 20</span></div>
+</section>
+
+<!-- 10 -->
+<section class="slide">
+  <div class="kicker">W2 · The negative result</div>
+  <h2>A large, obvious defect — with no measurable payoff</h2>
+  <hr class="rule">
+  <p>Three-level ablation: uncropped frame → naive largest-area crop → MGPL crop. Same encoder, same
+  queries, same pools. Only the pixels change.</p>
+  <table>
+    <thead><tr><th>Contrast</th><th class="num">Δ NDCG@10</th><th class="num">Relative</th><th>95% CI</th><th class="num">p</th></tr></thead>
+    <tbody>
+      <tr><td><code>image+MGPL</code> vs <code>image</code> (uncropped)</td><td class="num">+0.0068</td><td class="num">+1.5%</td><td>[−0.0022, +0.0154]</td><td class="num warn">0.144</td></tr>
+      <tr class="hi"><td><code>image+MGPL</code> vs <code>image+naive</code></td><td class="num">+0.0038</td><td class="num">+0.9%</td><td>[−0.0049, +0.0122]</td><td class="num bad">0.391</td></tr>
+    </tbody>
+  </table>
+  <div class="callout bad">
+    <b>A visually unambiguous defect affecting a quarter of all inputs produces a downstream effect
+    we cannot distinguish from zero.</b> This is the week's main finding, and it is negative.
+  </div>
+  <h3>Why this is still worth knowing</h3>
+  <div class="grid g3">
+    <div class="card"><h4>Dilution</h4><p class="small">Only a minority of pools contain images whose crops actually
+    differ. For much of the catalogue, the two arms hand SigLIP <b>identical pixels</b> — the ablation
+    cannot measure what it does not vary.</p></div>
+    <div class="card"><h4>Label ceiling</h4><p class="small">If the labels reward category-level matching
+    (W1), sharper <i>instance-level</i> visual detail has little to bite on. The metric may be
+    structurally insensitive to this fix.</p></div>
+    <div class="card"><h4>Cost discipline</h4><p class="small">MGPL costs <b>10.2 extra GPU-hours</b> to index
+    for +0.9% at p = 0.391. Treat image preprocessing as a <b>bounded-value</b> investment, not a
+    priority.</p></div>
+  </div>
+  <div class="foot"><span>W2 · Ablation</span><span>10 / 20</span></div>
+</section>
+
+<!-- 11 -->
+<section class="slide">
+  <div class="kicker">W3 · Complementarity</div>
+  <h2>Stop asking which modality is better. Ask how differently they fail.</h2>
+  <hr class="rule">
+  <p>Averages hide structure. The two modalities are not <i>weakly</i> different — they are
+  <b>strongly different in opposite directions on different queries</b>.</p>
+  <div class="grid g2">
+    <div class="card">
+      <h4 class="good">Image wins where the answer is a visual pattern</h4>
+      <table style="margin-top:4px"><tbody>
+        <tr><td>spain world cup jersey</td><td class="num good">+0.88</td></tr>
+        <tr><td>mexico jersey</td><td class="num good">+0.70</td></tr>
+        <tr><td>knicks jersey</td><td class="num good">+0.64</td></tr>
+        <tr><td>stanley 30 oz.</td><td class="num good">+0.49</td></tr>
+      </tbody></table>
+      <p class="small">Jerseys are colourways and crests. A photograph encodes them directly; a title
+      compresses them to a team name.</p>
+    </div>
+    <div class="card">
+      <h4 class="warn">Text wins on proper nouns and function</h4>
+      <table style="margin-top:4px"><tbody>
+        <tr><td>nike sabrina 3</td><td class="num bad">−0.78</td></tr>
+        <tr><td>sabrina</td><td class="num bad">−0.75</td></tr>
+        <tr><td>ja 3</td><td class="num bad">−0.55</td></tr>
+        <tr><td>soccer goalie gloves</td><td class="num bad">−0.53</td></tr>
+      </tbody></table>
+      <p class="small">No photograph encodes "this is the Sabrina Ionescu signature model". And
+      <code>shin guards</code> vs <code>goalie gloves</code> are function-differentiated, not
+      visually differentiated.</p>
+    </div>
+  </div>
+  <div class="grid g3">
+    <div class="stat"><div class="v good">+16.3%</div><div class="l">per-query <b>oracle</b> over the best single system — p &lt; 0.001, ~3× the modality effect itself</div></div>
+    <div class="stat"><div class="v">171 / 129</div><div class="l">queries won by image vs text — <b>neither dominates</b></div></div>
+    <div class="stat"><div class="v warn">29.5%</div><div class="l">of that oracle headroom actually captured by fixed fusion</div></div>
+  </div>
+  <p class="small mut">Query <i>length</i> predicts nothing (1 word +0.083, 2 words −0.012, 3 words +0.056). Query <i>type</i> does.</p>
+  <div class="foot"><span>W3 · Oracle</span><span>11 / 20</span></div>
+</section>
+
+<!-- 12 -->
+<section class="slide">
+  <div class="kicker">W3 · The failure</div>
+  <h2>Routing is an open problem, not an engineering task</h2>
+  <hr class="rule">
+  <p>If the oracle is worth +16.3%, the obvious move is to predict per query which modality to trust.
+  We tried the two most natural routers. <b>Both failed.</b></p>
+  <table>
+    <thead><tr><th>System</th><th class="num">NDCG@10</th><th class="num">Δ vs best single</th><th>95% CI</th><th class="num">p</th></tr></thead>
+    <tbody>
+      <tr class="hi"><td><b>Oracle</b> <span class="tag">(not achievable)</span></td><td class="num">0.5151</td><td class="num good">+16.3%</td><td>[+0.0586, +0.0865]</td><td class="num good">&lt;0.001</td></tr>
+      <tr><td><code>fusion</code></td><td class="num">0.4643</td><td class="num good">+4.8%</td><td>[+0.0048, +0.0388]</td><td class="num good">0.015</td></tr>
+      <tr><td><code>router-brand</code></td><td class="num">0.4329</td><td class="num bad">−2.3%</td><td>[−0.0301, +0.0103]</td><td class="num">0.291</td></tr>
+      <tr><td><code>router-margin</code></td><td class="num">0.4200</td><td class="num bad">−5.2%</td><td>[−0.0418, −0.0044]</td><td class="num bad">0.013</td></tr>
+    </tbody>
+  </table>
+  <div class="grid g2">
+    <div class="card"><h4>Brand-token router — <span class="warn">at chance</span></h4>
+      <p class="small">Route to text if the query contains a catalogue brand token. Built from the
+      <code>brand_name</code> column across all 19,468 products.</p>
+      <div class="stat" style="margin-top:8px"><div class="v warn">48.0%</div><div class="l">accuracy at predicting the winning modality</div></div>
+    </div>
+    <div class="card"><h4>Confidence-margin router — <span class="bad">below chance</span></h4>
+      <p class="small">Route to whichever system's top candidate stands out further from its pool in
+      σ units. The standard confidence-cascade pattern used widely in production.</p>
+      <div class="stat" style="margin-top:8px"><div class="v bad">42.3%</div><div class="l">accuracy — <b>worse than a coin flip</b>, and loses 5.2% vs always using images</div></div>
+    </div>
+  </div>
+  <div class="callout bad"><b>A router that is reliably below chance is informative:</b> the signal it keys on is
+  anti-correlated with the truth. Model confidence does <i>not</i> indicate modality suitability here.</div>
+  <div class="foot"><span>W3 · Routing</span><span>12 / 20</span></div>
+</section>
+
+<!-- 13 -->
+<section class="slide">
+  <div class="kicker">W4 · Validity audit</div>
+  <h2>The labels leak the thing we are trying to predict</h2>
+  <hr class="rule">
+  <p>Three weeks of results rested on one judgement list. Auditing it surfaced a defect worth
+  reporting independently of anything about embeddings.</p>
+  <div class="grid g2">
+    <div class="card">
+      <h4>Residual position correlation</h4>
+      <table style="margin-top:4px">
+        <thead><tr><th>Label set</th><th class="num">corr(position, grade)</th></tr></thead>
+        <tbody>
+          <tr><td>Production LTR judgement list <span class="tag">(as shipped)</span></td><td class="num bad">−0.291</td></tr>
+          <tr><td>Raw CTR (undebiased control)</td><td class="num">−0.253</td></tr>
+          <tr class="hi"><td><b>After our fix</b></td><td class="num good">−0.177</td></tr>
+        </tbody>
+      </table>
+      <p class="small">As shipped, the "debiased" labels were <b>barely less position-correlated than raw CTR</b>.</p>
+    </div>
+    <div class="card">
+      <h4>Grade-by-position, before → after</h4>
+        <table style="margin-top:4px">
+          <thead><tr><th>LTR grade</th><th class="num">As shipped</th><th class="num">Fixed</th></tr></thead>
+          <tbody>
+            <tr><td>4</td><td class="num">16.0</td><td class="num good">21.2</td></tr>
+            <tr><td>3</td><td class="num">21.9</td><td class="num">18.3</td></tr>
+            <tr><td>2</td><td class="num">26.3</td><td class="num">19.0</td></tr>
+            <tr><td>1</td><td class="num">29.3</td><td class="num">23.6</td></tr>
+          </tbody>
+        </table>
+        <p class="small">Grades were cleanly <b>monotone</b> in rank. After the fix that monotonicity is
+      <b>broken</b> — grade 4 now sits deeper than grade 3, which is what a working correction should do.</p>
+    </div>
+  </div>
+  <h3>Root cause and fix</h3>
+  <p>The construction divided weighted clicks by <b>weighted</b> impressions:
+  <code>wCTR = Σ(click·τ·decay) / Σ(impression·τ·decay)</code>. With <code>τ</code> in the
+  denominator the estimate becomes <code>r / τ̄</code> — true relevance divided by that product's own
+  mean inverse-propensity — which <b>systematically deflates products shown at deep ranks</b> and
+  re-introduces position bias in the <i>same</i> direction it was meant to remove.</p>
+  <p><b>Fixed:</b> <code>τ</code> now applies to clicks only. The sigmoid time decay stays on both
+  sides because it is a recency sample weight, not a propensity correction:
+  <code>wCTR = Σ(click·τ·decay) / Σ(impression·decay)</code>.
+  <b>Every number in this deck is recomputed on the corrected labels.</b></p>
+  <div class="grid g3">
+    <div class="stat"><div class="v good">−0.291 → −0.177</div><div class="l">residual position correlation — a <b>39% reduction</b> in leakage</div></div>
+    <div class="stat"><div class="v good">broken</div><div class="l">grade-by-position monotonicity — the qualitative signature of the defect is gone</div></div>
+    <div class="stat"><div class="v warn">0.601 → 0.423</div><div class="l"><code>production</code> NDCG@10 on head queries — <b>1st place to 6th</b></div></div>
+  </div>
+  <div class="callout warn"><b>−0.177 is not zero, and probably should not be.</b> A good ranker genuinely
+  does place relevant products higher, so some negative correlation is real signal rather than
+  leakage. Remaining contributors: the propensity model is rank-only, and <code>τ</code> is clipped
+  at rank 48, so deeper positions stay under-corrected. <code>production</code> is now reported as a
+  normal system rather than excluded.</div>
+  <div class="foot"><span>W4 · Labels</span><span>13 / 20</span></div>
+</section>
+
+<!-- 14 -->
+<section class="slide">
+  <div class="kicker">W4 · Systems cost</div>
+  <h2>What this costs to serve and to index</h2>
+  <hr class="rule">
+  <div class="grid g2">
+    <div class="card">
+      <h4>Query-time latency is <i>entirely</i> text encoding</h4>
+      <table style="margin-top:4px">
+        <thead><tr><th>Component</th><th class="num">p50</th></tr></thead>
+        <tbody>
+          <tr class="hi"><td>SigLIP text encode</td><td class="num">7.2 ms</td></tr>
+          <tr><td>Jina v5 nano text encode</td><td class="num">17.4 ms</td></tr>
+          <tr><td>Brute-force score, all 149,801 products</td><td class="num">3.1 ms</td></tr>
+        </tbody>
+      </table>
+      <p class="small"><b>Image encoding never happens at query time</b> — product vectors are
+      precomputed. And at this catalogue size, exhaustive scoring is fast enough that
+      <b>no approximate index is needed at all</b>.</p>
+    </div>
+    <div class="card">
+      <h4>One-off indexing cost</h4>
+      <table style="margin-top:4px">
+        <thead><tr><th>Pass</th><th class="num">GPU-hours</th></tr></thead>
+        <tbody>
+          <tr><td>Text vectors (titles or attributes)</td><td class="num good">0.07</td></tr>
+          <tr><td>Image vectors</td><td class="num">1.98</td></tr>
+          <tr class="dim"><td>+ MGPL product-grounded cropping</td><td class="num warn">+10.2</td></tr>
+        </tbody>
+      </table>
+      <p class="small">The recommended system (<code>attr-siglip</code>) is the
+      <b>cheapest to index by two orders of magnitude</b> — 0.07 GPU-hours — and needs no image
+      pipeline at all.</p>
+    </div>
+  </div>
+  <div class="callout good"><b>Cost is not the constraint.</b> The best-performing representation is also the
+  cheapest to build and serve. Nothing in this study is blocked on infrastructure.</div>
+  <p class="small mut">Licensing note: both Jina v5 checkpoints are <b>CC BY-NC 4.0</b> — commercial use
+  requires a licence. They are used here only as research comparators. SigLIP is Apache-2.0.</p>
+  <div class="foot"><span>W4 · Cost</span><span>14 / 20</span></div>
+</section>
+
+<!-- 15 -->
+<section class="slide">
+  <div class="kicker">W5 · Test-set redesign</div>
+  <h2>The old test set was 300 head queries. That was a problem.</h2>
+  <hr class="rule">
+  <p>Every result through W4 was measured on the <b>300 highest-volume terms</b> that survived the LTR
+  filters. Head queries are short, brand-heavy, and well-covered — they are the easy case, and they
+  are not what the long tail looks like.</p>
+  <div class="grid g2">
+    <div class="card">
+      <h4 class="bad">Before — volume-ranked</h4>
+      <ul class="small" style="margin:0">
+        <li>Candidate pool = top 6,000 terms by impression count</li>
+        <li>Final selection = <code>ORDER BY impressions DESC LIMIT 300</code></li>
+        <li><b>Head-biased twice.</b> Tail terms were cut before any quality check ran</li>
+        <li>300 queries · 19,468 products</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 class="good">After — stratified, no volume cap</h4>
+      <ul class="small" style="margin:0">
+        <li>Pool = top-volume terms <b>∪ random sample of low-volume terms</b></li>
+        <li><b>No final volume cap</b> — every term passing LTR eligibility is kept</li>
+        <li>Each query tagged head / torso / tail by volume percentile <i>within the evaluable set</i></li>
+        <li>6,537 queries · 80,848 products</li>
+      </ul>
+    </div>
+  </div>
+  <h3>Resulting strata</h3>
+  <div class="grid g3">
+    <div class="stat"><div class="v">324</div><div class="l"><b>Head</b> — top 5% by volume percentile</div></div>
+    <div class="stat"><div class="v">1,635</div><div class="l"><b>Torso</b> — next 25%</div></div>
+    <div class="stat"><div class="v">4,573</div><div class="l"><b>Tail</b> — remaining 70%, the long tail</div></div>
+  </div>
+  <div class="callout"><b>Eligibility, not popularity, is now the inclusion rule.</b> A query is in the test set
+  if it has a gradeable candidate pool (10–240 candidates, ≥2 distinct relevance levels) — regardless
+  of how much traffic it gets.</div>
+  <div class="foot"><span>W5 · Sampling</span><span>15 / 20</span></div>
+</section>
+
+<!-- 16 -->
+<section class="slide">
+  <div class="kicker">W5 · Results by tier</div>
+  <h2>Everything degrades on the tail — and the ranking order changes</h2>
+  <hr class="rule">
+  <p class="mut small">Macro-averaged NDCG@10, <b>corrected</b> LTR labels. Full depth k = 5…144 in the source report.</p>
+  <table>
+    <thead><tr><th>System</th><th class="num">Head (328)</th><th class="num">Torso (1,635)</th><th class="num">Tail (4,573)</th><th class="num">Head → Tail</th></tr></thead>
+    <tbody>
+      <tr class="hi"><td><code>attr-siglip</code></td><td class="num">0.5630</td><td class="num">0.5592</td><td class="num">0.4909</td><td class="num warn">−0.072</td></tr>
+      <tr><td><code>attr-jina-small</code></td><td class="num">0.4837</td><td class="num">0.4893</td><td class="num">0.4267</td><td class="num">−0.057</td></tr>
+      <tr><td><code>attr-jina</code></td><td class="num">0.4690</td><td class="num">0.4806</td><td class="num">0.4164</td><td class="num">−0.053</td></tr>
+      <tr><td><code>fusion</code></td><td class="num">0.4579</td><td class="num">0.4743</td><td class="num">0.4107</td><td class="num">−0.047</td></tr>
+      <tr><td><code>production</code></td><td class="num">0.4232</td><td class="num">0.4605</td><td class="num">0.4075</td><td class="num">−0.016</td></tr>
+      <tr><td><code>image</code></td><td class="num">0.4378</td><td class="num">0.4592</td><td class="num">0.3917</td><td class="num">−0.046</td></tr>
+      <tr><td><code>text-jina</code></td><td class="num">0.4159</td><td class="num">0.4387</td><td class="num">0.3800</td><td class="num">−0.036</td></tr>
+      <tr><td><code>text-siglip</code></td><td class="num">0.4216</td><td class="num">0.4311</td><td class="num">0.3626</td><td class="num">−0.059</td></tr>
+      <tr class="dim"><td><code>random</code></td><td class="num">0.2887</td><td class="num">0.2960</td><td class="num">0.2381</td><td class="num">−0.051</td></tr>
+    </tbody>
+  </table>
+  <div class="grid g3">
+    <div class="stat"><div class="v good">#1</div><div class="l"><code>attr-siglip</code> leads in <b>every tier</b>, by its widest relative margin on the tail</div></div>
+    <div class="stat"><div class="v">0.423</div><div class="l"><code>production</code> on head queries — post-fix it no longer tops any tier</div></div>
+    <div class="stat"><div class="v warn">70%</div><div class="l">of the evaluable query set is tail — <b>entirely invisible</b> in W1–W4</div></div>
+  </div>
+  <div class="callout warn"><b>This is why stratified reporting matters.</b> A single aggregate number can improve
+  while long-tail performance gets worse, because head queries dominate the traffic-weighted average.</div>
+  <div class="foot"><span>W5 · Tiers</span><span>16 / 20</span></div>
+</section>
+
+<!-- 17 -->
+<section class="slide">
+  <div class="kicker">W6 · Fusion sweep</div>
+  <h2>If we fuse image with text — which text, and combined how?</h2>
+  <hr class="rule">
+  <p>Target modality held fixed at <b>SigLIP image similarity</b>. Sweep 6 text representations ×
+  3 fusion methods = <b>18 combinations</b>, all on cached embeddings.</p>
+  <div class="grid g2">
+    <div class="card">
+      <h4>Three fusion methods</h4>
+      <table style="margin-top:4px">
+        <thead><tr><th>Method</th><th>Combines</th></tr></thead>
+        <tbody>
+          <tr><td><b>Mean cosine</b></td><td class="small"><code>0.5·(cos_img + cos_txt)</code> — raw, unnormalised</td></tr>
+          <tr class="hi"><td><b>RRF (k=60)</b></td><td class="small"><code>1/(60+rank_img) + 1/(60+rank_txt)</code> — rank-based</td></tr>
+          <tr><td><b>Z-score average</b></td><td class="small"><code>0.5·(z(cos_img) + z(cos_txt))</code> — current production</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h4>Why mean-cosine is in the sweep</h4>
+      <p class="small">It is the <b>control that shows what goes wrong without scale correction</b>.
+      SigLIP and Jina similarities are dot products in <b>unrelated, differently-scaled</b> spaces —
+      a raw average silently lets whichever system has larger score magnitude dominate, regardless of
+      quality.</p>
+      <p class="small"><b>RRF sidesteps the scale problem entirely</b> by fusing on rank rather than
+      score — no normalisation assumption at all.</p>
+    </div>
+  </div>
+  <h3>Six text representations swept</h3>
+  <p><span class="pill">text-siglip</span><span class="pill">text-jina</span><span class="pill">text-jina-small</span>
+     <span class="pill">attr-siglip</span><span class="pill">attr-jina</span><span class="pill">attr-jina-small</span></p>
+  <p class="small mut">One combination — <code>(text-jina, z-score average)</code> — is exactly the pre-existing
+  <code>fusion</code> system, so it is reused rather than recomputed. The other 17 are new.</p>
+  <div class="foot"><span>W6 · Design</span><span>17 / 20</span></div>
+</section>
+
+<!-- 18 -->
+<section class="slide">
+  <div class="kicker">W6 · Fusion results</div>
+  <h2>The fusion <i>method</i> matters as much as the text choice</h2>
+  <hr class="rule">
+  <p class="mut small">Macro NDCG@10, corrected LTR labels, 6,537 queries. Paired bootstrap, 2,000 resamples.</p>
+  <div class="grid g2">
+    <div class="card">
+      <h4>Method matters — holding text fixed at <code>attr-siglip</code></h4>
+      <table style="margin-top:4px">
+        <thead><tr><th>Method</th><th class="num">NDCG@10</th><th class="num">vs RRF</th><th class="num">p</th></tr></thead>
+        <tbody>
+          <tr class="hi"><td><b>RRF (k=60)</b></td><td class="num">0.4978</td><td class="num">—</td><td class="num">—</td></tr>
+          <tr><td>Z-score average</td><td class="num">0.4192</td><td class="num bad">−0.0787</td><td class="num good">&lt;0.001</td></tr>
+          <tr><td>Mean cosine</td><td class="num">0.4142</td><td class="num bad">−0.0836</td><td class="num good">&lt;0.001</td></tr>
+        </tbody>
+      </table>
+      <p class="small"><b>RRF beats both alternatives for every one of the 6 text candidates</b>, in both
+      weightings. Mean-cosine is frequently <b>worse than either input alone</b> — the predicted
+      failure mode of averaging unnormalised scores.</p>
+    </div>
+    <div class="card">
+      <h4>Text choice matters — holding method fixed at RRF</h4>
+      <table style="margin-top:4px">
+        <thead><tr><th>Fused with</th><th class="num">NDCG@10</th><th class="num">vs best</th><th class="num">p</th></tr></thead>
+        <tbody>
+          <tr class="hi"><td><b>attr-siglip</b></td><td class="num">0.4978</td><td class="num">—</td><td class="num">—</td></tr>
+          <tr><td>attr-jina-small</td><td class="num">0.4691</td><td class="num bad">−0.0288</td><td class="num good">&lt;0.001</td></tr>
+          <tr><td>attr-jina</td><td class="num">0.4620</td><td class="num bad">−0.0359</td><td class="num good">&lt;0.001</td></tr>
+          <tr><td>text-siglip</td><td class="num">0.4315</td><td class="num bad">−0.0663</td><td class="num good">&lt;0.001</td></tr>
+          <tr><td>text-jina</td><td class="num">0.4313</td><td class="num bad">−0.0666</td><td class="num good">&lt;0.001</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <h3>But does fusion actually beat its own inputs?</h3>
+  <table>
+    <thead><tr><th>Contrast (RRF + attr-siglip)</th><th class="num">Macro Δ</th><th class="num">Macro p</th><th class="num">Weighted Δ</th><th class="num">Weighted p</th></tr></thead>
+    <tbody>
+      <tr class="hi"><td>vs <code>image</code> alone</td><td class="num good">+0.0870</td><td class="num good">&lt;0.001</td><td class="num good">+0.1090</td><td class="num good">&lt;0.001</td></tr>
+      <tr><td>vs <code>attr-siglip</code> alone</td><td class="num bad">−0.0138</td><td class="num warn">&lt;0.001</td><td class="num bad">−0.0091</td><td class="num bad">0.443</td></tr>
+    </tbody>
+  </table>
+  <div class="callout warn"><b>Fusion's real, well-supported win is over the image alone — not over
+  <code>attr-siglip</code> alone.</b> On the corrected labels, adding image similarity to
+  <code>attr-siglip</code> makes things <b>significantly worse</b> on a typical query (−0.0138,
+  p &lt; 0.001) and is <b>indistinguishable from neutral</b> on a typical impression (p = 0.443).</div>
+  <div class="foot"><span>W6 · Fusion</span><span>18 / 20</span></div>
+</section>
+
+<!-- 19 -->
+<section class="slide">
+  <div class="kicker">Synthesis</div>
+  <h2>What we now know, and how confident we are</h2>
+  <hr class="rule">
+  <table>
+    <thead><tr><th>Question</th><th>Answer</th><th>Evidence</th><th>Confidence</th></tr></thead>
+    <tbody>
+      <tr class="hi"><td>What should the embedding read?</td><td><b>Unresolved.</b> The attribute answer was an artefact; titles and photos are close</td><td>attr fell −0.159 after the fix</td><td class="bad">Retracted</td></tr>
+      <tr class="hi"><td>How should modalities be combined?</td><td><b>No method generalises</b> — the winner changes with the image encoder</td><td>W8: z-score / RRF / mean-cosine each win somewhere</td><td class="warn">Mixed</td></tr>
+      <tr><td>Do images beat titles?</td><td><b>Not on a typical query</b> (p = 0.102); yes on a typical impression (p = 0.006)</td><td>+0.0226 / +0.0627</td><td class="warn">Weighting-dependent</td></tr>
+      <tr><td>Is there value in combining modalities?</td><td><b>Yes — but mostly unreachable.</b> Oracle +16.3%, fusion captures 29.5%</td><td>Routers at 48% / 42%</td><td class="good">Strong</td></tr>
+      <tr><td>Does better image localization help?</td><td><b>Not measurably</b>, despite fixing a defect in 25.5% of images</td><td>+0.9%, p = 0.391</td><td class="bad">Null</td></tr>
+      <tr><td>Does a bigger encoder help?</td><td><b>No on titles</b> (p = 0.517). The 203M model beats the 677M one on attributes</td><td>+0.0745, p &lt; 0.001</td><td class="good">Strong</td></tr>
+      <tr><td>Can we trust the labels?</td><td><b>Now, largely yes.</b> Leakage cut from −0.29 to −0.18; <code>production</code> is comparable again</td><td>Monotonicity broken</td><td class="good">Fixed</td></tr>
+      <tr><td>Where is performance worst?</td><td><b>The long tail</b> — 70% of evaluable queries, invisible until W5</td><td>All systems drop on tail</td><td class="warn">Descriptive</td></tr>
+    </tbody>
+  </table>
+  <div class="callout bad"><b>The through-line, revised:</b> this cycle found <b>two independent harness
+  defects</b> — position leakage in the labels and tie-ordering in the ranker — each of which
+  produced a confident, publishable-looking result that was wrong. The durable lesson is about
+  <b>evaluation discipline</b>, not embeddings: check tie fractions, shuffle pools, verify encoder
+  outputs are distinct, and re-run before recommending.</div>
+  <div class="foot"><span>Synthesis</span><span>19 / 20</span></div>
+</section>
+
+<!-- 20 -->
+<section class="slide">
+  <div class="kicker">Recommendations</div>
+  <h2>What to do next</h2>
+  <hr class="rule">
+  <div class="grid g2">
+    <div class="card">
+      <h4 class="good">Do now</h4>
+      <ul class="small" style="margin:0">
+        <li><b>Do not adopt <code>attr-siglip</code>.</b> Its advantage was a tie-ordering artefact;
+        corrected, it ranks last among real systems.</li>
+        <li><b>Keep the two harness fixes.</b> Pool shuffling before ranking, and click-only IPW in
+        the judgement list. Both are one-line changes that altered headline conclusions.</li>
+        <li><b>Port the IPW fix upstream.</b> The same <code>τ</code>-in-the-denominator bug is in the
+        production judgement-list pipeline, where it affects <i>ranker training</i>, not just our
+        evaluation.</li>
+        <li><b>Adopt two standing diagnostics:</b> corr(position, grade) on any click-derived label
+        set, and per-pool tie fraction for any new representation.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4 class="warn">Do not invest further (yet)</h4>
+      <ul class="small" style="margin:0">
+        <li><b>Image preprocessing / cropping.</b> Real defect, no measurable payoff, +10.2 GPU-h.
+        Revisit only if the label ceiling is lifted.</li>
+        <li><b>Modality routing.</b> Two natural routers land at and below chance. This is a research
+        problem, not a sprint item.</li>
+        <li><b>Larger text encoders.</b> 2.8× capacity buys nothing on titles; the smallest model wins
+        on attributes.</li>
+      </ul>
+    </div>
+  </div>
+  <h3>Open questions worth a next cycle</h3>
+  <div class="grid g3">
+    <div class="card"><h4>Label ceiling</h4><p class="small">Attributes win despite being unable to
+    separate within a category. Do the labels reward anything <i>beyond</i> category matching? If not,
+    the metric caps what any embedding can show.</p></div>
+    <div class="card"><h4>Tail-first evaluation</h4><p class="small">Now that 4,573 tail queries are
+    measurable, re-run the W2 crop ablation and W3 routing analysis on tail only — the dilution
+    argument predicts larger effects there.</p></div>
+    <div class="card"><h4>Learned combination</h4><p class="small">RRF is a fixed, untrained rule and it
+    beat both tuned-looking alternatives. A learned per-query combiner is the natural next step toward
+    the 70% of oracle headroom still unclaimed.</p></div>
+  </div>
+  <div class="foot"><span>Recommendations</span><span>20 / 20</span></div>
+</section>
+
+</div>
+
+<div class="nav">
+  <button id="prev" title="Previous (←)">‹</button>
+  <button id="next" title="Next (→)">›</button>
+</div>
+
+<script>
+(function(){
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var i = 0, bar = document.getElementById('bar');
+  function show(n){
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach(function(s, k){ s.classList.toggle('active', k === i); });
+    bar.style.width = ((i + 1) / slides.length * 100) + '%';
+    if (location.hash !== '#' + (i + 1)) history.replaceState(null, '', '#' + (i + 1));
+    var a = slides[i]; if (a) a.scrollTop = 0;
+  }
+  document.getElementById('next').onclick = function(){ show(i + 1); };
+  document.getElementById('prev').onclick = function(){ show(i - 1); };
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); show(i + 1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(i - 1); }
+    else if (e.key === 'Home') { show(0); }
+    else if (e.key === 'End') { show(slides.length - 1); }
+  });
+  var start = parseInt((location.hash || '').replace('#',''), 10);
+  show(isNaN(start) ? 0 : start - 1);
+  window.addEventListener('hashchange', function(){
+    var n = parseInt((location.hash || '').replace('#',''), 10);
+    if (!isNaN(n) && n - 1 !== i) show(n - 1);
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,107 @@
+{
+  "manifest": {
+    "chunks": [
+      {
+        "chunk_index": 0,
+        "row_count": 5,
+        "row_offset": 0
+      }
+    ],
+    "format": "JSON_ARRAY",
+    "schema": {
+      "column_count": 6,
+      "columns": [
+        {
+          "name": "ecode",
+          "position": 0,
+          "type_name": "STRING",
+          "type_text": "STRING"
+        },
+        {
+          "name": "attr_id",
+          "position": 1,
+          "type_name": "STRING",
+          "type_text": "STRING"
+        },
+        {
+          "name": "attr_name",
+          "position": 2,
+          "type_name": "STRING",
+          "type_text": "STRING"
+        },
+        {
+          "name": "attr_value",
+          "position": 3,
+          "type_name": "STRING",
+          "type_text": "STRING"
+        },
+        {
+          "name": "isFacetable",
+          "position": 4,
+          "type_name": "STRING",
+          "type_text": "STRING"
+        },
+        {
+          "name": "isDisplayable",
+          "position": 5,
+          "type_name": "STRING",
+          "type_text": "STRING"
+        }
+      ]
+    },
+    "total_chunk_count": 1,
+    "total_row_count": 5,
+    "truncated": false
+  },
+  "result": {
+    "chunk_index": 0,
+    "data_array": [
+      [
+        "25ST1UNBNTSC25SCKNHA",
+        "5440",
+        "Collection",
+        "City Edition",
+        "Y",
+        "N"
+      ],
+      [
+        "25ST1UNBNTSC25SCKNHA",
+        "3937",
+        "Sock Type",
+        "Athletic",
+        "Y",
+        "N"
+      ],
+      [
+        "25ST1UNBNTSC25SCKNHA",
+        "5089",
+        "City",
+        "New York City",
+        "Y",
+        "N"
+      ],
+      [
+        "25ST1UNBNTSC25SCKNHA",
+        "4739",
+        "Sport",
+        "Basketball",
+        "Y",
+        "N"
+      ],
+      [
+        "25ST1UNBNTSC25SCKNHA",
+        "4539",
+        "Type",
+        "Footwear",
+        "Y",
+        "N"
+      ]
+    ],
+    "row_count": 5,
+    "row_offset": 0
+  },
+  "statement_id": "01f192ed-18dc-1c54-82aa-4efe28546061",
+  "status": {
+    "state": "SUCCEEDED"
+  }
+}

@@ -1,0 +1,151 @@
+{
+  "manifest": {
+    "chunks": [
+      {
+        "chunk_index": 0,
+        "row_count": 5,
+        "row_offset": 0
+      }
+    ],
+    "format": "JSON_ARRAY",
+    "schema": {
+      "column_count": 10,
+      "columns": [
+        {
+          "name": "ecode",
+          "position": 0,
+          "type_name": "STRING",
+          "type_text": "STRING"
+        },
+        {
+          "name": "product_title",
+          "position": 1,
+          "type_name": "STRING",
+          "type_text": "STRING"
+        },
+        {
+          "name": "dsg_web_active",
+          "position": 2,
+          "type_name": "STRING",
+          "type_text": "STRING"
+        },
+        {
+          "name": "gg_web_active",
+          "position": 3,
+          "type_name": "STRING",
+          "type_text": "STRING"
+        },
+        {
+          "name": "pbl_web_active",
+          "position": 4,
+          "type_name": "STRING",
+          "type_text": "STRING"
+        },
+        {
+          "name": "primary_category",
+          "position": 5,
+          "type_name": "STRING",
+          "type_text": "STRING"
+        },
+        {
+          "name": "primary_category_name",
+          "position": 6,
+          "type_name": "STRING",
+          "type_text": "STRING"
+        },
+        {
+          "name": "parent_hierarchy",
+          "position": 7,
+          "type_name": "STRING",
+          "type_text": "STRING"
+        },
+        {
+          "name": "datetime_catalog_added",
+          "position": 8,
+          "type_name": "TIMESTAMP",
+          "type_text": "TIMESTAMP"
+        },
+        {
+          "name": "datetime_last_modified",
+          "position": 9,
+          "type_name": "TIMESTAMP",
+          "type_text": "TIMESTAMP"
+        }
+      ]
+    },
+    "total_chunk_count": 1,
+    "total_row_count": 5,
+    "truncated": false
+  },
+  "result": {
+    "chunk_index": 0,
+    "data_array": [
+      [
+        "25NTEYNFLGNTSYMKNNYG",
+        "NFL Team Apparel Youth New York Giants Blue Make Noise Short Sleeve T-Shirt",
+        "N",
+        "N",
+        "N",
+        "NFLKidsApparel-130257",
+        "NFL Kids' Apparel",
+        "Licensed Collections > NFL Kids' Apparel > Kids' Apparel",
+        "2026-02-10T18:57:39.286Z",
+        "2026-07-19T10:38:32.458Z"
+      ],
+      [
+        "25NTEYNFLJGRSHRTLJAX",
+        "NFL Team Apparel Youth Jacksonville Jaguars Garage Hero Teal T-Shirt",
+        "N",
+        "N",
+        "N",
+        "NFLKidsApparel-130257",
+        "NFL Kids' Apparel",
+        "Licensed Collections > NFL Kids' Apparel > Kids' Apparel",
+        "2026-02-10T18:57:39.286Z",
+        "2026-03-29T11:49:10.613Z"
+      ],
+      [
+        "25NTEYNFLGNTSBLJDNYG",
+        "NFL Team Apparel Youth New York Giants Jaxson Dart #6 Blue Triple Pick Player T-Shirt",
+        "Y",
+        "N",
+        "N",
+        "NFLKidsApparel-130257",
+        "NFL Kids' Apparel",
+        "Fan Shop Gear > NFL > NFL Kids' Apparel > Kids' Apparel",
+        "2026-02-10T18:57:39.286Z",
+        "2026-07-29T13:26:16.537Z"
+      ],
+      [
+        "25NTEYNFLJTSSPRYHNYJ",
+        "NFL Team Apparel Youth New York Jets Natural Spray Heart Boxy T-Shirt",
+        "N",
+        "N",
+        "N",
+        "NFLKidsApparel-130257",
+        "NFL Kids' Apparel",
+        "Fan Shop Gear > NFL > NFL Kids' Apparel > Kids' Apparel",
+        "2026-02-10T18:57:39.286Z",
+        "2026-07-30T13:18:55.695Z"
+      ],
+      [
+        "25NTEYNFLJTSYNDZNNYJ",
+        "NFL Team Apparel Youth New York Jets Green Endzone Sublimation T-Shirt",
+        "Y",
+        "N",
+        "N",
+        "NFLKidsApparel-130257",
+        "NFL Kids' Apparel",
+        "Fan Shop Gear > NFL > NFL Kids' Apparel > Kids' Apparel",
+        "2026-02-10T18:57:39.286Z",
+        "2026-07-29T13:26:16.537Z"
+      ]
+    ],
+    "row_count": 5,
+    "row_offset": 0
+  },
+  "statement_id": "01f192ed-1666-16e2-b595-1b56dd9f7908",
+  "status": {
+    "state": "SUCCEEDED"
+  }
+}

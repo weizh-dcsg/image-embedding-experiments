@@ -1,0 +1,147 @@
+{
+  "manifest": {
+    "chunks": [
+      {
+        "chunk_index": 0,
+        "row_count": 10,
+        "row_offset": 0
+      }
+    ],
+    "format": "JSON_ARRAY",
+    "schema": {
+      "column_count": 6,
+      "columns": [
+        {
+          "name": "ecode",
+          "position": 0,
+          "type_name": "STRING",
+          "type_text": "STRING"
+        },
+        {
+          "name": "attr_id",
+          "position": 1,
+          "type_name": "STRING",
+          "type_text": "STRING"
+        },
+        {
+          "name": "attr_name",
+          "position": 2,
+          "type_name": "STRING",
+          "type_text": "STRING"
+        },
+        {
+          "name": "attr_value",
+          "position": 3,
+          "type_name": "STRING",
+          "type_text": "STRING"
+        },
+        {
+          "name": "isFacetable",
+          "position": 4,
+          "type_name": "STRING",
+          "type_text": "STRING"
+        },
+        {
+          "name": "isDisplayable",
+          "position": 5,
+          "type_name": "STRING",
+          "type_text": "STRING"
+        }
+      ]
+    },
+    "total_chunk_count": 1,
+    "total_row_count": 10,
+    "truncated": false
+  },
+  "result": {
+    "chunk_index": 0,
+    "data_array": [
+      [
+        "25ST1UNBNTSC25SCKNHA",
+        "5440",
+        "Collection",
+        "City Edition",
+        "Y",
+        "N"
+      ],
+      [
+        "25ST1UNBNTSC25SCKNHA",
+        "3937",
+        "Sock Type",
+        "Athletic",
+        "Y",
+        "N"
+      ],
+      [
+        "25ST1UNBNTSC25SCKNHA",
+        "5089",
+        "City",
+        "New York City",
+        "Y",
+        "N"
+      ],
+      [
+        "25ST1UNBNTSC25SCKNHA",
+        "4739",
+        "Sport",
+        "Basketball",
+        "Y",
+        "N"
+      ],
+      [
+        "25ST1UNBNTSC25SCKNHA",
+        "4539",
+        "Type",
+        "Footwear",
+        "Y",
+        "N"
+      ],
+      [
+        "25ST1UNBNTSC25SCKNHA",
+        "X_BRAND",
+        "Brand",
+        "Stance",
+        "Y",
+        "Y"
+      ],
+      [
+        "25ST1UNBNTSC25SCKNHA",
+        "2101",
+        "Gender by Age",
+        "Unisex",
+        "N",
+        "N"
+      ],
+      [
+        "25ST1UNBNTSC25SCKNHA",
+        "4285",
+        "Activity",
+        "Fan Gear",
+        "Y",
+        "N"
+      ],
+      [
+        "25ST1UNBNTSC25SCKNHA",
+        "4423",
+        "Sports League",
+        "NBA",
+        "Y",
+        "N"
+      ],
+      [
+        "25ST1UNBNTSC25SCKNHA",
+        "X_DESCMD",
+        "product_description_MD",
+        "### Design\n\n* Team socks\n* Reinforced heel and toe\n* Seamless toe closure\n\n### Style and Team Spirit\n\n* Features all-new 2025-26 City Edition design\n\n### Additional Details\n\n* Machine washable\n* Officially licensed product of the NBA",
+        "N",
+        "N"
+      ]
+    ],
+    "row_count": 10,
+    "row_offset": 0
+  },
+  "statement_id": "01f192ec-ddcc-10e5-abe4-95a9b1371cb4",
+  "status": {
+    "state": "SUCCEEDED"
+  }
+}

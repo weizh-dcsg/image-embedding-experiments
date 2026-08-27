@@ -1,0 +1,44 @@
+{
+  "n_queries": 300,
+  "mean_ndcg": {
+    "image": 0.4430426606160296,
+    "text": 0.4171012266751788,
+    "fusion": 0.46427989566146927,
+    "router_brand": 0.43290233027728997,
+    "router_margin": 0.4199949311072437,
+    "oracle": 0.5150954971470268
+  },
+  "queries_where_image_better": 171,
+  "brand_token_queries": 189,
+  "brand_router_accuracy": 0.48,
+  "margin_router_accuracy": 0.42333333333333334,
+  "oracle_vs_best_single": {
+    "delta": 0.0720528365309972,
+    "rel_pct": 16.26318251854374,
+    "ci_low": 0.05859923430534304,
+    "ci_high": 0.08654374948359748,
+    "p": 0.0
+  },
+  "fusion_vs_best_single": {
+    "delta": 0.021237235045439787,
+    "rel_pct": 4.793496638881328,
+    "ci_low": 0.004803465373402964,
+    "ci_high": 0.03878689795194528,
+    "p": 0.015
+  },
+  "router_brand_vs_best_single": {
+    "delta": -0.010140330338739699,
+    "rel_pct": -2.2887932111639215,
+    "ci_low": -0.030099332402886106,
+    "ci_high": 0.010295272320198792,
+    "p": 0.291
+  },
+  "router_margin_vs_best_single": {
+    "delta": -0.02304772950878593,
+    "rel_pct": -5.202146781246566,
+    "ci_low": -0.0418064438387716,
+    "ci_high": -0.004423769805416084,
+    "p": 0.013
+  },
+  "fusion_share_of_oracle_headroom": 0.29474530175232416
+}
