@@ -1,0 +1,4 @@
+eland>=8.17,<9
+elasticsearch>=8.17,<9
+sentence-transformers>=3.0,<6
+transformers>=4.53,<5
