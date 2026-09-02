@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Image-enhanced retrieval — side by side</title>
+<style>
+  :root {
+    --bg: #0f1216;
+    --panel: #171b21;
+    --panel-2: #1d222a;
+    --line: #2a313b;
+    --text: #e8ecf1;
+    --muted: #98a2b3;
+    --accent: #4f9cf9;
+    --new: #35c07f;
+    --up: #35c07f;
+    --down: #e5776b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  header {
+    position: sticky; top: 0; z-index: 20; background: rgba(15,18,22,.94);
+    backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); padding: 14px 20px;
+  }
+  .bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  h1 { font-size: 15px; margin: 0 12px 0 0; font-weight: 650; letter-spacing: .2px; }
+  input[type=search] {
+    flex: 1; min-width: 260px; padding: 10px 13px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--panel-2); color: var(--text); font-size: 14px;
+  }
+  input[type=search]:focus { outline: none; border-color: var(--accent); }
+  select, button {
+    padding: 10px 13px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--panel-2); color: var(--text); font-size: 14px; cursor: pointer;
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #06121f; font-weight: 650; }
+  button:disabled { opacity: .55; cursor: default; }
+  .examples { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
+  .examples .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+  .examples select { min-width: 300px; font-variant-numeric: tabular-nums; }
+  .examples select optgroup { color: var(--muted); }
+  #stats { color: var(--muted); font-size: 12.5px; margin-top: 10px; min-height: 18px; }
+  #stats b { color: var(--text); font-weight: 600; }
+
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px 20px 40px; }
+  @media (max-width: 1000px) { .cols { grid-template-columns: 1fr; } }
+  .col { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .col > h2 {
+    margin: 0; padding: 12px 14px; font-size: 13px; font-weight: 650;
+    border-bottom: 1px solid var(--line); display: flex; align-items: baseline; gap: 8px;
+  }
+  .col > h2 small { color: var(--muted); font-weight: 400; font-size: 12px; }
+  .tag { font-size: 11px; padding: 2px 7px; border-radius: 5px; background: var(--panel-2); color: var(--muted); }
+  .tag.on { background: rgba(53,192,127,.15); color: var(--new); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; padding: 14px; }
+  .card { position: relative; border-radius: 9px; overflow: hidden; background: var(--panel-2); border: 1px solid transparent; }
+  .card.is-new { border-color: rgba(53,192,127,.55); }
+  .thumb { position: relative; aspect-ratio: 1/1; background: #fff; }
+  .thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .rank {
+    position: absolute; top: 6px; left: 6px; font-size: 11px; font-weight: 650;
+    background: rgba(8,11,15,.78); color: #fff; padding: 2px 6px; border-radius: 5px;
+  }
+  .badge {
+    position: absolute; top: 6px; right: 6px; font-size: 10.5px; font-weight: 650;
+    padding: 2px 6px; border-radius: 5px; background: rgba(8,11,15,.78);
+  }
+  .badge.new { color: var(--new); } .badge.up { color: var(--up); } .badge.down { color: var(--down); }
+  .title {
+    padding: 8px 9px 10px; font-size: 12.2px; line-height: 1.35; color: var(--text);
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .attrs {
+    position: absolute; inset: 0; background: rgba(9,12,17,.94); color: var(--text);
+    padding: 11px; opacity: 0; transition: opacity .12s ease; overflow: auto;
+    display: flex; flex-direction: column; gap: 7px; pointer-events: none;
+  }
+  .card:hover .attrs, .card:focus-within .attrs { opacity: 1; }
+  .attrs .h { font-size: 10.5px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+  .attrs dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; font-size: 11.6px; }
+  .attrs dt { color: var(--muted); white-space: nowrap; }
+  .attrs dd { margin: 0; }
+  .empty, .loading { padding: 26px 14px; color: var(--muted); text-align: center; }
+  .err { padding: 14px; margin: 14px 20px; border-radius: 9px; background: rgba(229,119,107,.12);
+         border: 1px solid rgba(229,119,107,.4); color: #f0b6ae; }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <h1>Image-enhanced retrieval</h1>
+    <input type="search" id="q" placeholder="Search products…" autocomplete="off" autofocus>
+    <select id="tower" title="Image tower"></select>
+    <button class="primary" id="go">Search</button>
+    <span class="tag" id="mode"></span>
+  </div>
+  <div class="examples">
+    <span class="lbl">torso</span><select id="exTorso"></select>
+    <span class="lbl">tail</span><select id="exTail"></select>
+    <span class="lbl" id="exNote"></span>
+  </div>
+  <div id="stats"></div>
+</header>
+
+<div id="error"></div>
+
+<div class="cols">
+  <section class="col">
+    <h2>Baseline <small>BM25 + E5-small · RRF k=60</small> <span class="tag">production today</span></h2>
+    <div class="grid" id="left"><div class="empty">Run a search to compare.</div></div>
+  </section>
+  <section class="col">
+    <h2>Image-enhanced <small id="rightSub">weighted z-score fusion</small> <span class="tag on" id="towerTag"></span></h2>
+    <div class="grid" id="right"><div class="empty">&nbsp;</div></div>
+  </section>
+</div>
+
+<script>
+// Dropdowns are built from static/examples.json, generated by build_examples.py: each query is
+// run through this demo's own pipeline and scored against the judgement list. The offline W9
+// deltas measure pool re-ranking and disagree with full-catalog retrieval, so they are not used
+// here. Numbers are judged-relevant products in the top 10, baseline -> image-enhanced.
+function fillExamples(id, rows, visualRows) {
+  const opt = (r) => {
+    const d = r.enh - r.base;
+    const sign = d > 0 ? "+" : "";
+    return `<option value="${escape(r.q)}">${escape(r.q)}  —  ${r.base}→${r.enh} (${sign}${d})</option>`;
+  };
+  const group = (label, list) =>
+    list.length ? `<optgroup label="${label} (${list.length})">${list.map(opt).join("")}</optgroup>` : "";
+
+  const visualWins = (visualRows || []).filter(r => r.enh > r.base);
+  const seen = new Set(visualWins.map(r => r.q));
+  const rest = rows.filter(r => !seen.has(r.q));
+
+  el(id).innerHTML =
+    `<option value="">select a query…</option>` +
+    group("long / descriptive — improves", visualWins) +
+    group("improves", rest.filter(r => r.enh > r.base)) +
+    group("unchanged", rest.filter(r => r.enh === r.base)) +
+    group("regresses", rest.filter(r => r.enh < r.base));
+  el(id).onchange = (e) => {
+    if (!e.target.value) return;
+    el("q").value = e.target.value;
+    search();
+  };
+}
+
+const el = (id) => document.getElementById(id);
+
+function card(item, showDelta) {
+  const a = item.attributes || {};
+  let badge = "";
+  if (showDelta) {
+    if (item.baseline_rank === null) badge = `<span class="badge new">NEW</span>`;
+    else if (item.delta > 0) badge = `<span class="badge up">▲${item.delta}</span>`;
+    else if (item.delta < 0) badge = `<span class="badge down">▼${-item.delta}</span>`;
+  }
+  const rows = Object.entries(a).map(([k, v]) => `<dt>${k}</dt><dd>${escape(v)}</dd>`).join("");
+  return `<article class="card ${showDelta && item.baseline_rank === null ? "is-new" : ""}" tabindex="0">
+    <div class="thumb">
+      <img loading="lazy" src="/image/${encodeURIComponent(item.ecode)}"
+           onerror="this.onerror=null;this.src='${(item.image_url || "").replace(/'/g, "&#39;")}'">
+      <span class="rank">${item.rank}</span>${badge}
+      <div class="attrs">
+        <div class="h">Big four</div>
+        <dl>${rows}</dl>
+        <div class="h" style="margin-top:auto">${escape(item.ecode)}</div>
+      </div>
+    </div>
+    <div class="title">${escape(item.title)}</div>
+  </article>`;
+}
+
+function escape(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, c =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function render(node, items, showDelta) {
+  node.innerHTML = items.length
+    ? items.map(i => card(i, showDelta)).join("")
+    : `<div class="empty">No results.</div>`;
+}
+
+async function search() {
+  const q = el("q").value.trim();
+  if (!q) return;
+  el("error").innerHTML = "";
+  el("go").disabled = true;
+  el("left").innerHTML = el("right").innerHTML = `<div class="loading">Searching…</div>`;
+  el("stats").textContent = "";
+  const url = `/api/search?q=${encodeURIComponent(q)}&tower=${encodeURIComponent(el("tower").value)}`;
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || res.statusText);
+    render(el("left"), data.baseline, false);
+    render(el("right"), data.enhanced, true);
+    const s = data.stats;
+    const w = data.tower.weights.map(x => x.toFixed(2)).join(" / ");
+    el("rightSub").textContent = `weighted z-score · bm25 ${data.tower.weights[0]} / e5 ${data.tower.weights[1]} / image ${data.tower.weights[2]}`;
+    el("towerTag").textContent = `${data.tower.label} · holdout NDCG@10 ${data.tower.holdout_ndcg10.toFixed(4)}`;
+    el("stats").innerHTML =
+      `<b>${s.introduced}</b> of ${data.enhanced.length} results on the right are new · ` +
+      `<b>${s.unchanged}</b> shared with the baseline · ` +
+      `fused over <b>${s.candidates}</b> candidates · ` +
+      `BM25 matched <b>${s.bm25_hits}</b> in-catalog products · weights <b>${w}</b>`;
+    history.replaceState(null, "", `?q=${encodeURIComponent(q)}&tower=${el("tower").value}`);
+  } catch (e) {
+    el("error").innerHTML = `<div class="err">${escape(e.message)}</div>`;
+    el("left").innerHTML = el("right").innerHTML = `<div class="empty">—</div>`;
+  } finally {
+    el("go").disabled = false;
+  }
+}
+
+el("go").onclick = search;
+el("q").addEventListener("keydown", e => { if (e.key === "Enter") search(); });
+el("tower").onchange = () => { if (el("q").value.trim()) search(); };
+
+(async function init() {
+  const info = await (await fetch("/api/towers")).json();
+  el("tower").innerHTML = info.towers.map(t => `<option value="${t.id}">${t.label}</option>`).join("");
+  try {
+    const ex = await (await fetch("/static/examples.json")).json();
+    fillExamples("exTorso", ex.torso || [], ex.torso_visual);
+    fillExamples("exTail", ex.tail || [], ex.tail_visual);
+    el("exNote").textContent = "judged-relevant in top 10: baseline → enhanced";
+  } catch (e) {
+    el("exNote").textContent = "examples.json missing — run build_examples.py";
+  }
+  const m = el("mode");
+  if (info.mode === "elastic") {
+    m.textContent = "live Elasticsearch";
+    m.classList.add("on");
+  } else {
+    m.textContent = "LOCAL REPLICA — cluster unreachable";
+    m.style.color = "#f0b6ae";
+    m.style.background = "rgba(229,119,107,.15)";
+    m.title = "BM25 is a local Okapi BM25 over the demo catalog, not the production index. "
+            + "Encoders are the same checkpoints Elasticsearch hosts.";
+  }
+  const params = new URLSearchParams(location.search);
+  if (params.get("tower")) el("tower").value = params.get("tower");
+  if (params.get("q")) { el("q").value = params.get("q"); search(); }
+})();
+</script>
+</body>
+</html>

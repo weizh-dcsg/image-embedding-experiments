@@ -8,3 +8,4 @@ peft>=0.13
 timm>=1.0
 sentencepiece>=0.2
 protobuf>=4.25
+einops>=0.8

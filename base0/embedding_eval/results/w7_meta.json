@@ -6,11 +6,12 @@
     "tail": 200,
     "torso": 200
   },
-  "bootstrap_samples": 2000,
+  "bootstrap_samples": 200,
   "image_systems": [
     "siglip_image",
     "omni_nano_image",
-    "omni_small_image"
+    "omni_small_image",
+    "siglip_es_image"
   ],
   "excluded_degenerate": []
 }

@@ -21,6 +21,7 @@ LABELS = {
     "siglip_image": "siglip-image",
     "omni_nano_image": "omni-nano-image",
     "omni_small_image": "omni-small-image",
+    "siglip_es_image": "siglip-ES version",
     "siglip_attr": "attr-siglip (text reference)",
     "production": "production (incumbent ordering)",
     "random": "random",
@@ -132,6 +133,7 @@ single checkpoint. W7 removes that single point of failure by adding two indepen
 | System | Query encoder | Document representation | Params | Dim |
 | --- | --- | --- | --- | --- |
 | `siglip-image` | SigLIP text tower | SigLIP image tower over the photo | 203M | 768 |
+| `siglip-ES version` | Elasticsearch-deployed SigLIP text tower | Existing local SigLIP image vectors | 203M | 768 |
 | `omni-nano-image` | Jina v5 omni text | Jina v5 omni vision tower | ~1.0B | 768 |
 | `omni-small-image` | Jina v5 omni text | Jina v5 omni vision tower | larger | 1024 |
 

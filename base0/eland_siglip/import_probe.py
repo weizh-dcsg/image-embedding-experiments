@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Build and optionally import a SigLIP text embedding model with Eland."""
+"""Build and optionally import the Jina CLIP v2 text encoder with Eland."""
 
 from __future__ import annotations
 
-import sys
 import argparse
 import json
 import os
@@ -13,30 +12,20 @@ import torch
 from elasticsearch import Elasticsearch
 from transformers import AutoModel, AutoProcessor
 
-MODEL_ID = "google/siglip-base-patch16-512"
+JINA_CLIP_MODEL_ID = "jinaai/jina-clip-v2"
 SAMPLE_TEXT = "running shoes"
-EXPECTED_DIMENSIONS = 768
-DEFAULT_MAX_LENGTH = 64
+EXPECTED_DIMENSIONS = 1024
+DEFAULT_MAX_LENGTH = 77
 DEFAULT_CHUNK_SIZE = 4 * 1024 * 1024
 
 
 def _elasticsearch_client(es_url: str) -> Elasticsearch:
     api_key = os.environ.get("ELASTIC_API_KEY")
-    username = os.environ.get("ELASTIC_USERNAME", "elastic")
-    password = os.environ.get("ELASTIC_PASSWORD")
 
     if api_key:
         return Elasticsearch(
             es_url,
             api_key=api_key,
-            request_timeout=600,
-            max_retries=0,
-            retry_on_timeout=False,
-        )
-    if password:
-        return Elasticsearch(
-            es_url,
-            basic_auth=(username, password),
             request_timeout=600,
             max_retries=0,
             retry_on_timeout=False,
@@ -47,104 +36,160 @@ def _elasticsearch_client(es_url: str) -> Elasticsearch:
     )
 
 
-class SiglipTextEncoder(torch.nn.Module):
+class JinaClipTextEncoder(torch.nn.Module):
     def __init__(self, model: torch.nn.Module) -> None:
         super().__init__()
         self.text_model = model.text_model
-        self.text_projection = getattr(model, "text_projection", None)
+        self.text_projection = model.text_projection
+        self.pad_token_id = int(model.text_model.config.pad_token_id)
 
-    def forward(
-        self,
-        input_ids: torch.Tensor,
-        attention_mask: torch.Tensor,
-        token_type_ids: torch.Tensor | None = None,
-        position_ids: torch.Tensor | None = None,
-    ) -> torch.Tensor:
-        output = self.text_model(input_ids=input_ids, attention_mask=attention_mask)
-        vector = output.pooler_output
-        if self.text_projection is not None:
-            vector = self.text_projection(vector)
+    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
+        del attention_mask
+        # Reimplement HFTextEncoder.forward without its fixed-length token bookkeeping so
+        # the traced graph stays valid for any sequence length Elasticsearch sends.
+        encoder = self.text_model
+        mask = (input_ids != self.pad_token_id).long()
+        output = encoder.transformer(input_ids=input_ids, attention_mask=mask)
+        vector = self.text_projection(encoder.proj(encoder.pooler(output, mask)))
         return torch.nn.functional.normalize(vector.float(), p=2, dim=-1)
 
 
-class SiglipTraceableModel:
-    def __init__(self, tokenizer: object, model: torch.nn.Module, max_length: int) -> None:
-        self.tokenizer = tokenizer
-        self.model = model.eval()
-        self.max_length = max_length
+def _merge_jina_lora_weights(model: torch.nn.Module) -> None:
+    """Fold the default LoRA adapter into the base weights.
 
-    def compatible_inputs(
-        self,
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        inputs = self.tokenizer(
-            SAMPLE_TEXT,
-            padding="max_length",
-            truncation=True,
-            max_length=self.max_length,
-            return_tensors="pt",
-        )
-        if "attention_mask" not in inputs:
-            inputs["attention_mask"] = torch.ones_like(inputs["input_ids"])
-        token_type_ids = torch.zeros_like(inputs["input_ids"])
-        position_ids = torch.arange(
-            self.max_length,
-            dtype=inputs["input_ids"].dtype,
-        ).unsqueeze(0)
-        return (
-            inputs["input_ids"],
-            inputs["attention_mask"],
-            token_type_ids,
-            position_ids,
-        )
+    Jina's adapter path loops over the tasks present in ``adapter_mask``, which traces
+    into a graph with the calibration sequence length baked in as a constant. Merging the
+    adapter lets the model run with ``adapter_mask=None`` and keeps the graph shape-generic.
 
-    def trace(self) -> torch.jit.ScriptModule:
-        return torch.jit.trace(self.model, self.compatible_inputs())
+    The merged weights are written into the parametrization's ``original`` tensor rather
+    than removing the parametrization, because Jina's attention layers branch on the
+    presence of ``parametrizations`` to decide whether ``Wqkv`` returns a residual.
+    """
+    from torch.nn.utils import parametrize
 
-    def sample_output(self) -> torch.Tensor:
-        return self.model(*self.compatible_inputs())
+    text_encoder = model.text_model
+    task_id = text_encoder.default_loraid
+    if task_id is None:
+        raise RuntimeError("Jina CLIP text encoder has no default LoRA task to merge")
+
+    merged_layers = 0
+    for module in text_encoder.transformer.modules():
+        if not parametrize.is_parametrized(module, "weight"):
+            continue
+        parametrization = module.parametrizations.weight[0]
+        if not hasattr(parametrization, "lora_forward"):
+            continue
+        with torch.no_grad():
+            merged = parametrization.lora_forward(module.weight, current_task=task_id).clone()
+            module.parametrizations.weight.original.copy_(merged)
+        merged_layers += 1
+
+    text_encoder._default_loraid = None
+    print(f"merged LoRA task {task_id} into {merged_layers} layers")
 
 
-def _eland_bundle(
+def _torch_rotary_qkv(
+    qkv: torch.Tensor,
+    cos: torch.Tensor,
+    sin: torch.Tensor,
+    cos_k: torch.Tensor | None = None,
+    sin_k: torch.Tensor | None = None,
+    interleaved: bool = False,
+    **kwargs: object,
+) -> torch.Tensor:
+    del kwargs
+    if interleaved:
+        raise RuntimeError("Jina CLIP export expects non-interleaved rotary embeddings")
+
+    rotary_dim = cos.shape[-1] * 2
+
+    def rotate(x: torch.Tensor, c: torch.Tensor, s: torch.Tensor) -> torch.Tensor:
+        # Non-interleaved layout: the rotated half-pairs are (i, i + rotary_dim / 2), so
+        # cos/sin must be duplicated by concatenation rather than interleaving.
+        c = torch.cat((c[: x.shape[1]], c[: x.shape[1]]), dim=-1).unsqueeze(1)
+        s = torch.cat((s[: x.shape[1]], s[: x.shape[1]]), dim=-1).unsqueeze(1)
+        first, second = x[..., :rotary_dim].chunk(2, dim=-1)
+        rotated = torch.cat((-second, first), dim=-1)
+        return torch.cat((x[..., :rotary_dim] * c + rotated * s, x[..., rotary_dim:]), dim=-1)
+
+    cos_k = cos if cos_k is None else cos_k
+    sin_k = sin if sin_k is None else sin_k
+    return torch.stack((rotate(qkv[:, :, 0], cos, sin), rotate(qkv[:, :, 1], cos_k, sin_k), qkv[:, :, 2]), dim=2)
+
+
+def _patch_jina_rotary_for_export() -> None:
+    import importlib
+
+    rotary = importlib.import_module(
+        "transformers_modules.jinaai.xlm_hyphen_roberta_hyphen_flash_hyphen_implementation.bd55a5ec8e6c0fb1d6c26efb4b6a4a74ce8a88d3.rotary"
+    )
+    rotary.apply_rotary_emb_qkv_ = _torch_rotary_qkv
+
+
+def _verify_jina_trace(
+    wrapper: torch.nn.Module,
+    traced_path: Path,
+    tokenizer: object,
+    max_length: int,
+) -> None:
+    """Check the reloaded trace against eager output at several sequence lengths.
+
+    Elasticsearch pads each batch to its own longest sequence, so the graph must not
+    depend on the calibration length.
+    """
+    reloaded = torch.jit.load(str(traced_path)).eval()
+    probes = [SAMPLE_TEXT, "shoes", "waterproof insulated hiking boots for cold weather"]
+    for probe in probes:
+        batch = tokenizer(probe, truncation=True, max_length=max_length, return_tensors="pt")
+        with torch.no_grad():
+            expected = wrapper(batch["input_ids"], batch["attention_mask"])
+            actual = reloaded(batch["input_ids"], batch["attention_mask"])
+        error = (expected - actual).abs().max().item()
+        seq_len = batch["input_ids"].shape[1]
+        print(f"trace check seq_len={seq_len}: max absolute error {error:.3g}")
+        if error > 1e-5:
+            raise RuntimeError(
+                f"Traced model diverges at sequence length {seq_len}: max error {error}"
+            )
+
+
+def _jina_clip_bundle(
     model: torch.nn.Module,
     tokenizer: object,
     output_dir: Path,
     max_length: int,
 ) -> tuple[Path, Path, object]:
     from eland.ml.pytorch.nlp_ml_model import (
-        NlpBertTokenizationConfig,
         NlpTrainedModelConfig,
+        NlpXLMRobertaTokenizationConfig,
         TextEmbeddingInferenceOptions,
         TrainedModelInput,
     )
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    traceable = SiglipTraceableModel(tokenizer, model, max_length)
-    traced_path = output_dir / "traced_pytorch_model.pt"
-    torch.jit.save(torch.jit.freeze(traceable.trace()), str(traced_path))
-
-    special_tokens = {
-        tokenizer.pad_token: "[SEP]",
-        tokenizer.unk_token: "[UNK]",
-        "<pad>": "[PAD]",
-        "<0x00>": "[CLS]",
-    }
-    vocab = [
-        special_tokens.get(token, token)
-        for token, _ in sorted(tokenizer.get_vocab().items(), key=lambda item: item[1])
-    ]
-    vocab_config: dict[str, object] = {"vocabulary": vocab}
-    sp_model = getattr(tokenizer, "sp_model", None)
-    if sp_model is not None:
-        vocab_config["scores"] = [sp_model.get_score(index) for index in range(len(vocab))]
-    vocab_path = output_dir / "vocabulary.json"
-    vocab_path.write_text(json.dumps(vocab_config), encoding="utf-8")
-
-    tokenization = NlpBertTokenizationConfig(
-        do_lower_case=False,
-        max_sequence_length=max_length,
+    traceable = JinaClipTextEncoder(model).eval()
+    inputs = tokenizer(
+        SAMPLE_TEXT,
+        padding="max_length",
+        truncation=True,
+        max_length=max_length,
+        return_tensors="pt",
     )
+    traced_path = output_dir / "traced_pytorch_model.pt"
+    traced = torch.jit.freeze(torch.jit.trace(traceable, (inputs["input_ids"], inputs["attention_mask"])))
+    torch.jit.save(traced, str(traced_path))
+    _verify_jina_trace(traceable, traced_path, tokenizer, max_length)
+
+    tokenizer_json = json.loads(tokenizer.backend_tokenizer.to_str())
+    model_vocab = tokenizer_json["model"]["vocab"]
+    vocab = [entry[0] for entry in model_vocab]
+    scores = [float(entry[1]) for entry in model_vocab]
+    vocab_path = output_dir / "vocabulary.json"
+    vocab_path.write_text(json.dumps({"vocabulary": vocab, "scores": scores}), encoding="utf-8")
+
+    tokenization = NlpXLMRobertaTokenizationConfig(max_sequence_length=max_length)
     config = NlpTrainedModelConfig(
-        description=f"{MODEL_ID} SigLIP text encoder",
+        description=f"{JINA_CLIP_MODEL_ID} text encoder",
         inference_config=TextEmbeddingInferenceOptions(
             tokenization=tokenization,
             embedding_size=EXPECTED_DIMENSIONS,
@@ -161,18 +206,19 @@ def main() -> None:
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path(__file__).with_name("siglip_eland_bundle"),
+        default=Path(__file__).with_name("jina_clip_v2_eland_bundle"),
     )
+    parser.add_argument("--hf-model-id", default=JINA_CLIP_MODEL_ID)
     parser.add_argument("--es-url")
-    parser.add_argument("--es-model-id", default="siglip-base-patch16-512-text")
+    parser.add_argument("--es-model-id", default="jina-clip-v2-text")
     parser.add_argument("--max-length", type=int, default=DEFAULT_MAX_LENGTH)
     parser.add_argument("--chunk-size", type=int, default=DEFAULT_CHUNK_SIZE)
     parser.add_argument("--start", action="store_true")
     args = parser.parse_args()
 
-    print(f"Loading {MODEL_ID}")
-    model = AutoModel.from_pretrained(MODEL_ID).eval()
-    processor = AutoProcessor.from_pretrained(MODEL_ID)
+    print(f"Loading {args.hf_model_id}")
+    model = AutoModel.from_pretrained(args.hf_model_id, trust_remote_code=True).eval()
+    processor = AutoProcessor.from_pretrained(args.hf_model_id, trust_remote_code=True)
     inputs = processor(
         text=[SAMPLE_TEXT],
         padding="max_length",
@@ -180,15 +226,15 @@ def main() -> None:
         max_length=args.max_length,
         return_tensors="pt",
     )
-    if "attention_mask" not in inputs:
-        inputs["attention_mask"] = torch.ones_like(inputs["input_ids"])
 
     with torch.no_grad():
+        # Capture the reference with the stock rotary kernel and active LoRA adapter, so
+        # the comparison below validates both export transformations end to end.
         reference = model.get_text_features(**inputs)
-        if not isinstance(reference, torch.Tensor):
-            reference = reference.pooler_output
         reference = torch.nn.functional.normalize(reference.float(), p=2, dim=-1)
-        wrapper = SiglipTextEncoder(model).eval()
+        _patch_jina_rotary_for_export()
+        _merge_jina_lora_weights(model)
+        wrapper = JinaClipTextEncoder(model).eval()
         exported = wrapper(inputs["input_ids"], inputs["attention_mask"])
 
     max_error = (reference - exported).abs().max().item()
@@ -197,17 +243,14 @@ def main() -> None:
     print(f"wrapper max absolute error: {max_error:.9g}")
     if exported.shape != (1, EXPECTED_DIMENSIONS):
         raise RuntimeError(
-            f"Unexpected SigLIP text feature shape: {tuple(exported.shape)}; "
+            f"Unexpected text feature shape: {tuple(exported.shape)}; "
             f"expected (1, {EXPECTED_DIMENSIONS})"
         )
     if max_error > 1e-5:
         raise RuntimeError(f"Wrapper does not match Transformers output: max error {max_error}")
 
-    traced_path, vocab_path, config = _eland_bundle(
-        wrapper,
-        processor.tokenizer,
-        args.output_dir,
-        args.max_length,
+    traced_path, vocab_path, config = _jina_clip_bundle(
+        model, processor.tokenizer, args.output_dir, args.max_length
     )
     print(f"Saved Eland bundle: {args.output_dir}")
 

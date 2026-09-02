@@ -1,11 +1,11 @@
 # W7 — Which Image Encoder? SigLIP vs Jina v5 Omni
 
-Generated 2026-08-21 by `11_image_encoder_experiment.py` / `12_w7_report.py`.
+Generated 2026-08-28 by `11_image_encoder_experiment.py` / `12_w7_report.py`.
 
 > **TL;DR**
 > Best image encoder, macro: **`siglip-image`** (NDCG@10 0.4272).
 > Best image encoder, impression-weighted: **`siglip-image`** (NDCG@10 0.4443).
-> `siglip-image` is ahead of `omni-nano-image` by 0.0958 NDCG@10 (significant, p = 0.0000); `siglip-image` is ahead of `omni-small-image` by 0.1527 NDCG@10 (significant, p = 0.0000).
+> `siglip-image` is ahead of `omni-nano-image` by 0.0958 NDCG@10 (significant, p = 0.0000); `siglip-image` is ahead of `omni-small-image` by 0.1527 NDCG@10 (significant, p = 0.0000); `siglip-image` is ahead of `siglip-ES version` by 0.1873 NDCG@10 (significant, p = 0.0000).
 > Reference: the best image encoder is **ahead of**
 > `attr-siglip` (0.3776 macro), whose earlier apparent strength was a tie-ordering
 > artefact — see the correction in `papers/w1-section5.md`.
@@ -20,6 +20,7 @@ single checkpoint. W7 removes that single point of failure by adding two indepen
 | System | Query encoder | Document representation | Params | Dim |
 | --- | --- | --- | --- | --- |
 | `siglip-image` | SigLIP text tower | SigLIP image tower over the photo | 203M | 768 |
+| `siglip-ES version` | Elasticsearch-deployed SigLIP text tower | Existing local SigLIP image vectors | 203M | 768 |
 | `omni-nano-image` | Jina v5 omni text | Jina v5 omni vision tower | ~1.0B | 768 |
 | `omni-small-image` | Jina v5 omni text | Jina v5 omni vision tower | larger | 1024 |
 
@@ -70,6 +71,7 @@ best-scoring **image** encoder on NDCG@10, tracked consistently across all table
 | `omni-nano-image` | 0.3011 | 0.3313 | 0.3879 | 0.4968 | 0.5823 | 0.6205 |
 | `omni-small-image` | 0.2414 | 0.2745 | 0.3297 | 0.4394 | 0.5352 | 0.5794 |
 | `random` | 0.2392 | 0.2640 | 0.3210 | 0.4357 | 0.5321 | 0.5758 |
+| `siglip-ES version` | 0.2107 | 0.2398 | 0.3040 | 0.4244 | 0.5234 | 0.5681 |
 
 **Recall@k**
 
@@ -81,6 +83,7 @@ best-scoring **image** encoder on NDCG@10, tracked consistently across all table
 | `omni-nano-image` | 0.1226 | 0.2278 | 0.4071 | 0.6893 | 0.8800 | 0.9592 |
 | `omni-small-image` | 0.1038 | 0.1997 | 0.3776 | 0.6550 | 0.8596 | 0.9501 |
 | `random` | 0.0954 | 0.1807 | 0.3567 | 0.6540 | 0.8596 | 0.9509 |
+| `siglip-ES version` | 0.0909 | 0.1811 | 0.3524 | 0.6520 | 0.8612 | 0.9528 |
 
 **Precision@k**
 
@@ -92,6 +95,7 @@ best-scoring **image** encoder on NDCG@10, tracked consistently across all table
 | `omni-nano-image` | 0.6433 | 0.6383 | 0.6249 | 0.5517 | 0.4233 | 0.3356 |
 | `omni-small-image` | 0.5810 | 0.5772 | 0.5669 | 0.5105 | 0.4073 | 0.3300 |
 | `random` | 0.5777 | 0.5777 | 0.5647 | 0.5094 | 0.4078 | 0.3306 |
+| `siglip-ES version` | 0.5187 | 0.5348 | 0.5404 | 0.5044 | 0.4079 | 0.3311 |
 
 **MRR@k**
 
@@ -103,6 +107,7 @@ best-scoring **image** encoder on NDCG@10, tracked consistently across all table
 | `omni-nano-image` | 0.7388 | 0.7451 | 0.7481 | 0.7490 | 0.7490 | 0.7490 |
 | `omni-small-image` | 0.6776 | 0.6853 | 0.6885 | 0.6893 | 0.6893 | 0.6893 |
 | `random` | 0.6917 | 0.6965 | 0.7008 | 0.7022 | 0.7022 | 0.7022 |
+| `siglip-ES version` | 0.6200 | 0.6326 | 0.6371 | 0.6386 | 0.6387 | 0.6387 |
 
 **MAP** (no cutoff)
 
@@ -114,6 +119,7 @@ best-scoring **image** encoder on NDCG@10, tracked consistently across all table
 | `omni-nano-image` | 0.6664 |
 | `omni-small-image` | 0.6079 |
 | `random` | 0.6041 |
+| `siglip-ES version` | 0.5978 |
 
 
 ### Impression-weighted — every query counts in proportion to its traffic
@@ -128,6 +134,7 @@ best-scoring **image** encoder on NDCG@10, tracked consistently across all table
 | `omni-nano-image` | 0.3511 | 0.3677 | 0.4040 | 0.5164 | 0.6310 | 0.6887 |
 | `random` | 0.3183 | 0.3208 | 0.3505 | 0.4523 | 0.5797 | 0.6481 |
 | `omni-small-image` | 0.2976 | 0.3168 | 0.3543 | 0.4617 | 0.5805 | 0.6492 |
+| `siglip-ES version` | 0.2792 | 0.2948 | 0.3399 | 0.4477 | 0.5779 | 0.6448 |
 
 **Recall@k**
 
@@ -139,6 +146,7 @@ best-scoring **image** encoder on NDCG@10, tracked consistently across all table
 | `omni-nano-image` | 0.0674 | 0.1362 | 0.2694 | 0.5551 | 0.8101 | 0.9333 |
 | `random` | 0.0645 | 0.1287 | 0.2543 | 0.5199 | 0.7870 | 0.9239 |
 | `omni-small-image` | 0.0646 | 0.1292 | 0.2539 | 0.5252 | 0.7888 | 0.9236 |
+| `siglip-ES version` | 0.0615 | 0.1235 | 0.2494 | 0.5221 | 0.7881 | 0.9226 |
 
 **Precision@k**
 
@@ -150,6 +158,7 @@ best-scoring **image** encoder on NDCG@10, tracked consistently across all table
 | `omni-nano-image` | 0.8205 | 0.8351 | 0.8369 | 0.7908 | 0.6613 | 0.5497 |
 | `random` | 0.7927 | 0.7862 | 0.7858 | 0.7335 | 0.6397 | 0.5425 |
 | `omni-small-image` | 0.7913 | 0.7903 | 0.7901 | 0.7422 | 0.6391 | 0.5420 |
+| `siglip-ES version` | 0.7445 | 0.7416 | 0.7582 | 0.7319 | 0.6359 | 0.5402 |
 
 **MRR@k**
 
@@ -161,6 +170,7 @@ best-scoring **image** encoder on NDCG@10, tracked consistently across all table
 | `omni-nano-image` | 0.8847 | 0.8860 | 0.8861 | 0.8862 | 0.8862 | 0.8862 |
 | `random` | 0.8806 | 0.8825 | 0.8829 | 0.8829 | 0.8829 | 0.8829 |
 | `omni-small-image` | 0.8695 | 0.8709 | 0.8709 | 0.8710 | 0.8710 | 0.8710 |
+| `siglip-ES version` | 0.8372 | 0.8431 | 0.8439 | 0.8440 | 0.8440 | 0.8440 |
 
 **MAP** (no cutoff)
 
@@ -172,6 +182,7 @@ best-scoring **image** encoder on NDCG@10, tracked consistently across all table
 | `omni-nano-image` | 0.8442 |
 | `random` | 0.7970 |
 | `omni-small-image` | 0.7981 |
+| `siglip-ES version` | 0.7919 |
 
 
 ---
@@ -181,33 +192,39 @@ best-scoring **image** encoder on NDCG@10, tracked consistently across all table
 Macro NDCG@10 within each tier. Head queries are short and brand-heavy; tail queries are where
 W5 showed every system degrades.
 
-| Tier | siglip-image | omni-nano-image | omni-small-image |
-| --- | --- | --- | --- |
-| head | 0.4300 | 0.3445 | 0.2893 |
-| torso | 0.4643 | 0.3576 | 0.2906 |
-| tail | 0.3872 | 0.2919 | 0.2436 |
+| Tier | siglip-image | omni-nano-image | omni-small-image | siglip-ES version |
+| --- | --- | --- | --- | --- |
+| head | 0.4300 | 0.3445 | 0.2893 | 0.2529 |
+| torso | 0.4643 | 0.3576 | 0.2906 | 0.2655 |
+| tail | 0.3872 | 0.2919 | 0.2436 | 0.2011 |
 
 ---
 
 ## 4. Significance
 
-Paired bootstrap over queries (2000 resamples), metric NDCG@10, LTR labels.
+Paired bootstrap over queries (200 resamples), metric NDCG@10, LTR labels.
 All pairwise image-encoder contrasts, plus each image encoder against the reference points.
 
 | Contrast | Macro Δ | Macro p | 95% CI | Win rate | Weighted Δ | Weighted p |
 | --- | --- | --- | --- | --- | --- | --- |
-| `siglip-image` vs `omni-nano-image` | +0.0958 | 0.0000 **sig.** | [+0.0772, +0.1163] | 62% | +0.0767 | 0.0030 |
-| `siglip-image` vs `omni-small-image` | +0.1527 | 0.0000 **sig.** | [+0.1309, +0.1736] | 69% | +0.1275 | 0.0000 |
-| `omni-nano-image` vs `omni-small-image` | +0.0568 | 0.0000 **sig.** | [+0.0370, +0.0761] | 56% | +0.0508 | 0.0030 |
-| `siglip-image` vs `attr-siglip (text reference)` | +0.0496 | 0.0000 **sig.** | [+0.0284, +0.0704] | 55% | +0.0258 | 0.3900 |
-| `siglip-image` vs `production (incumbent ordering)` | +0.0072 | 0.5640 n.s. | [-0.0175, +0.0322] | 50% | +0.0321 | 0.3920 |
-| `siglip-image` vs `random` | +0.1632 | 0.0000 **sig.** | [+0.1425, +0.1867] | 70% | +0.1236 | 0.0000 |
-| `omni-nano-image` vs `attr-siglip (text reference)` | -0.0462 | 0.0000 **sig.** | [-0.0683, -0.0258] | 42% | -0.0508 | 0.0420 |
-| `omni-nano-image` vs `production (incumbent ordering)` | -0.0887 | 0.0000 **sig.** | [-0.1123, -0.0650] | 38% | -0.0446 | 0.1170 |
-| `omni-nano-image` vs `random` | +0.0674 | 0.0000 **sig.** | [+0.0487, +0.0860] | 56% | +0.0469 | 0.0060 |
-| `omni-small-image` vs `attr-siglip (text reference)` | -0.1031 | 0.0000 **sig.** | [-0.1208, -0.0848] | 26% | -0.1017 | 0.0000 |
-| `omni-small-image` vs `production (incumbent ordering)` | -0.1455 | 0.0000 **sig.** | [-0.1689, -0.1231] | 29% | -0.0954 | 0.0000 |
-| `omni-small-image` vs `random` | +0.0105 | 0.2030 n.s. | [-0.0053, +0.0267] | 49% | -0.0039 | 0.8660 |
+| `siglip-image` vs `omni-nano-image` | +0.0958 | 0.0000 **sig.** | [+0.0759, +0.1167] | 62% | +0.0767 | 0.0000 |
+| `siglip-image` vs `omni-small-image` | +0.1527 | 0.0000 **sig.** | [+0.1331, +0.1741] | 69% | +0.1275 | 0.0000 |
+| `siglip-image` vs `siglip-ES version` | +0.1873 | 0.0000 **sig.** | [+0.1682, +0.2079] | 74% | +0.1495 | 0.0000 |
+| `omni-nano-image` vs `omni-small-image` | +0.0568 | 0.0000 **sig.** | [+0.0427, +0.0751] | 56% | +0.0508 | 0.0200 |
+| `omni-nano-image` vs `siglip-ES version` | +0.0915 | 0.0000 **sig.** | [+0.0725, +0.1098] | 65% | +0.0728 | 0.0000 |
+| `omni-small-image` vs `siglip-ES version` | +0.0347 | 0.0000 **sig.** | [+0.0191, +0.0535] | 56% | +0.0220 | 0.1300 |
+| `siglip-image` vs `attr-siglip (text reference)` | +0.0496 | 0.0000 **sig.** | [+0.0275, +0.0716] | 55% | +0.0258 | 0.0500 |
+| `siglip-image` vs `production (incumbent ordering)` | +0.0072 | 0.6500 n.s. | [-0.0179, +0.0302] | 50% | +0.0321 | 0.8000 |
+| `siglip-image` vs `random` | +0.1632 | 0.0000 **sig.** | [+0.1406, +0.1834] | 70% | +0.1236 | 0.0000 |
+| `omni-nano-image` vs `attr-siglip (text reference)` | -0.0462 | 0.0000 **sig.** | [-0.0681, -0.0254] | 42% | -0.0508 | 0.0800 |
+| `omni-nano-image` vs `production (incumbent ordering)` | -0.0887 | 0.0000 **sig.** | [-0.1112, -0.0648] | 38% | -0.0446 | 0.0000 |
+| `omni-nano-image` vs `random` | +0.0674 | 0.0000 **sig.** | [+0.0482, +0.0872] | 56% | +0.0469 | 0.0000 |
+| `omni-small-image` vs `attr-siglip (text reference)` | -0.1031 | 0.0000 **sig.** | [-0.1173, -0.0857] | 26% | -0.1017 | 0.0000 |
+| `omni-small-image` vs `production (incumbent ordering)` | -0.1455 | 0.0000 **sig.** | [-0.1675, -0.1188] | 29% | -0.0954 | 0.0000 |
+| `omni-small-image` vs `random` | +0.0105 | 0.1800 n.s. | [-0.0040, +0.0246] | 49% | -0.0039 | 0.6400 |
+| `siglip-ES version` vs `attr-siglip (text reference)` | -0.1377 | 0.0000 **sig.** | [-0.1567, -0.1177] | 27% | -0.1237 | 0.0000 |
+| `siglip-ES version` vs `production (incumbent ordering)` | -0.1801 | 0.0000 **sig.** | [-0.1975, -0.1566] | 24% | -0.1174 | 0.0000 |
+| `siglip-ES version` vs `random` | -0.0241 | 0.0000 **sig.** | [-0.0432, -0.0077] | 39% | -0.0259 | 0.2300 |
 
 ---
 

@@ -19,6 +19,7 @@ import config  # noqa: E402
 IMAGE_LABELS = {
     "siglip_image": "siglip-image",
     "omni_nano_image": "omni-nano-image",
+    "jina_clip_v2_image": "jina-clip-v2-image",
 }
 TEXT_LABELS = {
     "siglip_text": "text-siglip",  # SigLIP's own text tower over the title -- same encoder as `image`
@@ -146,7 +147,7 @@ TEXT_CANDIDATES_ORDER = [
     "siglip_attr", "jina_attr", "jina_small_attr",
     "e5_base_attr", "e5_small_multi_attr", "e5_large_instruct_attr", "omni_nano_attr",
 ]
-IMAGE_CANDIDATES_ORDER = ["siglip_image", "omni_nano_image"]
+IMAGE_CANDIDATES_ORDER = ["siglip_image", "omni_nano_image", "jina_clip_v2_image"]
 
 # Design-table rows: (key, query encoder, document representation over the product title)
 DESIGN_ROWS = [
@@ -188,6 +189,7 @@ DESIGN_ROWS = [
 IMAGE_DESIGN_ROWS = [
     ("siglip_image", "SigLIP text tower", "SigLIP image tower over the product photo"),
     ("omni_nano_image", "Jina v5 omni-nano `Query: `", "Jina v5 omni-nano `Document: ` image tower over the photo"),
+    ("jina_clip_v2_image", "Jina CLIP v2 text tower", "Jina CLIP v2 image tower over the product photo"),
 ]
 
 

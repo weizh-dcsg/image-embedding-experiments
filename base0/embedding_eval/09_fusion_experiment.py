@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""Step 9: fusion-method x text-representation sweep, across TWO target image modalities.
+"""Step 9: fusion-method x text-representation sweep, across THREE target image modalities.
 
 Answers: when fusing an image-tower similarity with a text-based similarity, which text
 representation gives the largest fusion gain, does the fusion *method* matter as much as the
 text representation choice, and does any of that change with the *image encoder* being fused?
 
-Target modalities (2):
+Target modalities (3):
   siglip_image      SigLIP text tower query   vs SigLIP image tower over the product photo
   omni_nano_image   Jina v5 omni-nano query   vs Jina v5 omni-nano image tower over the photo
+    jina_clip_v2_image Jina CLIP v2 text query  vs Jina CLIP v2 image tower over the photo
 
 Text representations (14): the query encoder is always paired with the matching document tower --
   siglip_text / siglip_attr             SigLIP text tower, title / Big-4 attribute string
@@ -23,7 +24,7 @@ Fusion methods (3), each combining a target-image similarity with one text simil
   rrf           1/(60+rank_image) + 1/(60+rank_text)                  -- reciprocal rank fusion, k=60
   zscore_avg    0.5 * (zscore(cos_image) + zscore(cos_text))          -- current production "fusion"
 
-2 target images x 14 text representations x 3 methods = 84 fusion combinations, all computed fresh
+3 target images x 14 text representations x 3 methods = 126 fusion combinations, all computed fresh
 here (cheap: cosine similarity + ranking over cached embeddings). Every system in this report --
 standalone systems, every fusion combo, production, random -- ranks the same, common candidate
 pool per query: the intersection of ecodes covered by every embedding source in use, so adding a
@@ -54,6 +55,7 @@ RRF_K = 60
 TARGET_IMAGES = {
     "siglip_image": ("siglip", "image_emb"),
     "omni_nano_image": ("jina_omni_nano_image", "image_emb"),
+    "jina_clip_v2_image": ("jina_clip_v2_w7", "image_emb"),
 }
 TEXT_CANDIDATES = {
     "siglip_text": ("siglip", "title_emb"),
@@ -117,7 +119,7 @@ def bootstrap_contrast(
     diff = (wide[system] - wide[baseline]).to_numpy()
     idx = rng.integers(0, len(diff), size=(n_boot, len(diff)))
     boot = diff[idx].mean(axis=1)
-    boot_w = np.array([np.average(diff[i], weights=vol[i]) for i in idx])
+    boot_w = (diff[idx] * vol).sum(axis=1) / vol.sum()
     return {
         "system": system,
         "baseline": baseline,

@@ -18,6 +18,9 @@ still has >= 5 candidates and a positive label after that intersection. So all s
 literally the same pools.
 
 Outputs: results/w7_per_query.csv, results/w7_summary.csv, results/w7_significance.csv
+
+An optional siglip_es_w7.npz adds siglip_es_image: the deployed SigLIP text tower query vector
+against the existing local SigLIP image vectors. The image vectors are deliberately reused.
 """
 
 from __future__ import annotations
@@ -80,6 +83,14 @@ def main() -> int:
     siglip = np.load(config.EMB_DIR / "siglip.npz", allow_pickle=True)
     sig_q = {str(k): i for i, k in enumerate(siglip["queries"])}
     sig_e = {str(k): i for i, k in enumerate(siglip["ecodes"])}
+    es_path = config.EMB_DIR / "siglip_es_w7.npz"
+    siglip_es = None
+    if es_path.exists():
+        es_data = np.load(es_path, allow_pickle=True)
+        siglip_es = {
+            str(k): v for k, v in zip(es_data["queries"], es_data["query_emb"])
+        }
+        print(f"loaded deployed SigLIP queries: {len(siglip_es)}")
 
     omni = {v: load_omni(v) for v in ("nano", "small")}
     if any(o is None for o in omni.values()):
@@ -95,7 +106,9 @@ def main() -> int:
         ))
     sig_arr = siglip["image_emb"]
     healthy["siglip_image"] = check_healthy("siglip_image", sig_arr)
-    active_images = [s for s in IMAGE_SYSTEMS] #if healthy.get(s)]
+    active_images = [s for s in IMAGE_SYSTEMS]
+    if siglip_es is not None:
+        active_images.append("siglip_es_image")
     excluded = [] #[s for s in IMAGE_SYSTEMS if not healthy.get(s)]
     print('[WARNING]: all encoders are included! No filtering on health active.')
     if excluded:
@@ -108,6 +121,8 @@ def main() -> int:
     # identical pools for every system
     common_e = set(sig_e) & set(omni["nano"]["d"]) & set(omni["small"]["d"])
     common_q = set(sig_q) & set(omni["nano"]["q"]) & set(omni["small"]["q"])
+    if siglip_es is not None:
+        common_q &= set(siglip_es)
     before = (test_set["search_term"].nunique(), test_set["ecode"].nunique())
     test_set = test_set[test_set["ecode"].isin(common_e) & test_set["search_term"].isin(common_q)]
     print(f"intersection: {before[0]} -> {test_set['search_term'].nunique()} queries, "
@@ -126,6 +141,8 @@ def main() -> int:
         rows_sig = np.array([sig_e[e] for e in ecodes])
         with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
             sims["siglip_image"] = np.ascontiguousarray(siglip["image_emb"][rows_sig]) @ siglip["query_emb"][sig_q[term]]
+            if siglip_es is not None:
+                sims["siglip_es_image"] = np.ascontiguousarray(siglip["image_emb"][rows_sig]) @ siglip_es[term]
             sims["siglip_attr"] = np.ascontiguousarray(siglip["attr_emb"][rows_sig]) @ siglip["query_emb"][sig_q[term]]
             for variant in ("nano", "small"):
                 if f"omni_{variant}_image" not in active_images:
